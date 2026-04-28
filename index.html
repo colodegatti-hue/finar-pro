@@ -2163,6 +2163,7 @@ window.addEventListener('load', async function() {
   if (_apw) _apw.style.display = 'none';
 
   // Detectar callback de Google OAuth
+  initSupabase(); // Cargar sesión guardada antes del callback
   if (await handleOAuthCallback()) {
     // Viene de Google, ya tiene token — entrar directo
     try {
