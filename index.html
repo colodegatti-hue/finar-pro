@@ -305,7 +305,6 @@ canvas{display:block;width:100%!important;border-radius:6px}
 .light-mode .card{background:var(--s2)}
 </style>
 <script src="capacitor.js"></script>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <!-- BODY STRUCTURE -->
@@ -6463,6 +6462,14 @@ window.APP = APP;
 console.log('APP IIFE OK - render:', typeof APP.render);
 } catch(appError) {
   console.log('APP IIFE ERROR:', appError.message, appError.stack);
+}
+// Verificar que APP no sea el stub
+if (!APP || APP.render.toString().length < 50) {
+  console.log('APP ES EL STUB - IIFE no completó');
+  document.addEventListener('DOMContentLoaded', function() {
+    var b = document.body;
+    if (b) b.innerHTML = '<div style="color:white;background:#0A0E1A;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:16px;padding:20px;text-align:center">Error al inicializar la app.<br><br>Abre la consola (F12) y busca APP IIFE ERROR.<br><br><button onclick="location.reload()" style="padding:12px 24px;margin-top:16px;background:#3D8EF0;border:none;border-radius:8px;color:white;font-size:16px;cursor:pointer">Recargar</button></div>';
+  });
 }
 
 // Global delete helper - Android-safe
