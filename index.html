@@ -1849,7 +1849,7 @@ function entrarApp() {
   var aw = document.getElementById('AUTH_WRAP');
   var apw = document.getElementById('APP');
   if (aw) aw.style.display = 'none';
-  if (apw) apw.style.display = 'block';
+  if (apw) apw.style.display = 'flex';
   resetPinTimer();
   try {
     if (typeof APP === 'undefined' || !APP) {
@@ -1888,7 +1888,7 @@ function pinKey(k) {
     } else if (pinBuffer === savedPin) {
       pinBuffer = '';
       document.getElementById('PIN_WRAP').style.display = 'none';
-      document.getElementById('APP').style.display = 'block';
+      document.getElementById('APP').style.display = 'flex';
       resetPinTimer();
     } else {
       errDiv.textContent = 'PIN incorrecto';
@@ -6476,7 +6476,7 @@ if (!APP || APP.render.toString().length < 50) {
 function closePDFOverlay() {
   var ov = document.getElementById('PDF_OVERLAY');
   if (ov) document.body.removeChild(ov);
-  document.getElementById('APP').style.display = 'block';
+  document.getElementById('APP').style.display = 'flex';
 }
 
 function printPDFOverlay() {
