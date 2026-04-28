@@ -2118,15 +2118,14 @@ window.addEventListener('load', function() {
 
 function lockApp() {
   var savedPin = localStorage.getItem('finar_pin');
+  if (!savedPin) {
+    // Sin PIN configurado — no bloquear, solo resetear el timer
+    resetPinTimer();
+    return;
+  }
   var pinWrap = document.getElementById('PIN_WRAP');
   var appWrap = document.getElementById('APP_WRAP');
-  // Update PIN screen title based on whether PIN exists
-  var pinTitle = pinWrap.querySelector ? pinWrap.querySelector('[id="pin_title"]') : null;
-  if (!savedPin) {
-    // First time - ask to create PIN
-    var subtitle = document.getElementById('pin_subtitle');
-    if (subtitle) subtitle.textContent = 'Crear PIN de 4 digitos para proteger la app';
-  }
+  var pinTitle = pinWrap && pinWrap.querySelector ? pinWrap.querySelector('[id="pin_title"]') : null;
   if (appWrap) appWrap.style.display = 'none';
   if (pinWrap) {
     pinWrap.style.cssText = 'display:flex;position:fixed;inset:0;background:#0A0E1A;z-index:9999;flex-direction:column;align-items:center;justify-content:center;padding:24px';
@@ -2136,7 +2135,6 @@ function lockApp() {
     var dot = document.getElementById('pd' + i);
     if (dot) dot.style.background = '#2a3450';
   }
-  // Clear error
   var err = document.getElementById('pin_error');
   if (err) err.textContent = '';
 }
