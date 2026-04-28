@@ -2164,6 +2164,7 @@ window.addEventListener('load', async function() {
 
   // Detectar callback de Google OAuth
   initSupabase(); // Cargar sesión guardada antes del callback
+  console.log('Startup: authToken=', !!authToken, 'currentUser=', !!currentUser);
   if (await handleOAuthCallback()) {
     // Viene de Google, ya tiene token — entrar directo
     try {
@@ -2216,6 +2217,7 @@ window.addEventListener('load', async function() {
         document.getElementById('AUTH_WRAP').style.display = 'none';
         lockApp();
       } else {
+        console.log('Startup: llamando entrarApp(), APP.render type=', typeof APP.render);
         entrarApp();
       }
     }
@@ -2251,6 +2253,7 @@ window.addEventListener('offline', function() {
 });
 
 try {
+console.log('APP IIFE START');
 var APP = (function() {
   var curPage = 'inicio';
   var viewY = TY, viewM = TM;
@@ -6457,6 +6460,7 @@ function generarAnalisisMes(ci) {
   };
 })();
 window.APP = APP;
+console.log('APP IIFE OK - render:', typeof APP.render);
 } catch(appError) {
   console.log('APP IIFE ERROR:', appError.message, appError.stack);
 }
