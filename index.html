@@ -1852,7 +1852,16 @@ function entrarApp() {
   if (aw) aw.style.display = 'none';
   if (apw) apw.style.display = 'block';
   resetPinTimer();
-  APP.render();
+  try {
+    if (typeof APP === 'undefined' || !APP) {
+      throw new Error('APP no definido');
+    }
+    APP.render();
+  } catch(e) {
+    console.log('entrarApp render error:', e.message, e.stack);
+    // Mostrar error visible en pantalla
+    if (apw) apw.innerHTML = '<div style="color:white;padding:20px;font-size:14px;">Error al cargar la app: ' + e.message + '<br><br><button onclick="location.reload()" style="padding:10px 20px;margin-top:10px">Recargar</button></div>';
+  }
 }
 
 // ── PIN functions ─────────────────────────────────────────────────────────────
