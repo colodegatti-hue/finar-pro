@@ -1847,7 +1847,7 @@ function usarSinCuenta() {
 
 function entrarApp() {
   var aw = document.getElementById('AUTH_WRAP');
-  var apw = document.getElementById('APP_WRAP');
+  var apw = document.getElementById('APP');
   if (aw) aw.style.display = 'none';
   if (apw) apw.style.display = 'block';
   resetPinTimer();
@@ -1888,7 +1888,7 @@ function pinKey(k) {
     } else if (pinBuffer === savedPin) {
       pinBuffer = '';
       document.getElementById('PIN_WRAP').style.display = 'none';
-      document.getElementById('APP_WRAP').style.display = 'block';
+      document.getElementById('APP').style.display = 'block';
       resetPinTimer();
     } else {
       errDiv.textContent = 'PIN incorrecto';
@@ -2123,7 +2123,7 @@ function lockApp() {
     return;
   }
   var pinWrap = document.getElementById('PIN_WRAP');
-  var appWrap = document.getElementById('APP_WRAP');
+  var appWrap = document.getElementById('APP');
   var pinTitle = pinWrap && pinWrap.querySelector ? pinWrap.querySelector('[id="pin_title"]') : null;
   if (appWrap) appWrap.style.display = 'none';
   if (pinWrap) {
@@ -2143,7 +2143,7 @@ function cerrarSesion() {
   currentUser = null;
   var pw = document.getElementById('PIN_WRAP');
   var aw = document.getElementById('AUTH_WRAP');
-  var apw = document.getElementById('APP_WRAP');
+  var apw = document.getElementById('APP');
   if (pw) pw.style.display = 'none';
   if (aw) aw.style.display = 'flex';
   if (apw) apw.style.display = 'none';
@@ -2157,7 +2157,7 @@ document.addEventListener('click', resetPinTimer);
 window.addEventListener('load', async function() {
   // Always show auth screen first
   var _aw = document.getElementById('AUTH_WRAP');
-  var _apw = document.getElementById('APP_WRAP');
+  var _apw = document.getElementById('APP');
   if (_aw) _aw.style.display = 'flex';
   if (_apw) _apw.style.display = 'none';
 
@@ -5313,7 +5313,7 @@ function generarAnalisisMes(ci) {
     actionBar += '</div>';
     overlay.innerHTML = actionBar + html;
     document.body.appendChild(overlay);
-    document.getElementById('APP_WRAP').style.display = 'none';
+    document.getElementById('APP').style.display = 'none';
     toast('Resumen generado');
   }
 
@@ -5978,7 +5978,7 @@ function generarAnalisisMes(ci) {
     actionBar += '</div>';
     overlay.innerHTML = actionBar + htmlCSV;
     document.body.appendChild(overlay);
-    document.getElementById('APP_WRAP').style.display = 'none';
+    document.getElementById('APP').style.display = 'none';
     toast(rows.length - 1 + ' movimientos exportados');
   }
 
@@ -6476,7 +6476,7 @@ if (!APP || APP.render.toString().length < 50) {
 function closePDFOverlay() {
   var ov = document.getElementById('PDF_OVERLAY');
   if (ov) document.body.removeChild(ov);
-  document.getElementById('APP_WRAP').style.display = 'block';
+  document.getElementById('APP').style.display = 'block';
 }
 
 function printPDFOverlay() {
