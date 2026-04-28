@@ -622,7 +622,7 @@ async function handleGoogleCredential(response) {
 async function handleOAuthCallback() {
   var search = window.location.search;
   var hash = window.location.hash;
-  console.log('OAuth callback check - search:', search, 'hash:', hash);
+  console.log('OAuth callback check - search:', search, 'hash:', hash ? hash.substring(0,50) : '');
 
   // Caso: Supabase devolvió error
   if (search && search.indexOf('error=') !== -1) {
@@ -642,11 +642,20 @@ async function handleOAuthCallback() {
       var kv = p.split('='); params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1]||'');
     });
     if (params.access_token) {
-      console.log('OAuth: token en hash OK');
-      authToken = params.access_token;
-      currentUser = { id: params.user_id || 'google_user', email: '' };
-      localStorage.setItem('finar_session', JSON.stringify({access_token: authToken, user: currentUser}));
-      history.replaceState(null, '', window.location.pathname);
+      console.log('OAuth: token en hash OK, guardando y recargando...');
+      localStorage.setItem('finar_session', JSON.stringify({access_token: params.access_token, user: {id: params.user_id || '', email: ''}}));
+      // Fetch user info
+      try {
+        var ur = await fetch(SUPA_URL + '/auth/v1/user', {
+          headers: { 'Authorization': 'Bearer ' + params.access_token, 'apikey': SUPA_KEY }
+        });
+        var ud = await ur.json();
+        if (ud && ud.id) {
+          localStorage.setItem('finar_session', JSON.stringify({access_token: params.access_token, user: ud}));
+        }
+      } catch(e3) {}
+      // Recargar la página limpia — el startup normal tomará la sesión del localStorage
+      window.location.replace(window.location.pathname);
       return true;
     }
   }
@@ -659,7 +668,7 @@ async function handleOAuthCallback() {
     });
     var code = qparams['code'];
     var verifier = sessionStorage.getItem('pkce_verifier');
-    console.log('OAuth PKCE: code=', code ? code.substring(0,20)+'...' : 'null', 'verifier=', verifier ? 'OK' : 'MISSING');
+    console.log('OAuth PKCE: code=', code ? 'OK' : 'null', 'verifier=', verifier ? 'OK' : 'MISSING');
     if (code && verifier) {
       try {
         var resp = await fetch(SUPA_URL + '/auth/v1/token?grant_type=pkce', {
@@ -668,18 +677,22 @@ async function handleOAuthCallback() {
           body: JSON.stringify({ auth_code: code, code_verifier: verifier })
         });
         var data = await resp.json();
-        console.log('PKCE exchange response:', JSON.stringify(data).substring(0,200));
+        console.log('PKCE exchange response status:', resp.status, 'has token:', !!data.access_token);
         if (data.access_token) {
-          authToken = data.access_token;
-          currentUser = data.user;
-          localStorage.setItem('finar_session', JSON.stringify({access_token: authToken, user: currentUser}));
+          localStorage.setItem('finar_session', JSON.stringify({access_token: data.access_token, user: data.user}));
           sessionStorage.removeItem('pkce_verifier');
-          history.replaceState(null, '', window.location.pathname);
+          window.location.replace(window.location.pathname);
           return true;
+        } else {
+          console.log('PKCE error:', JSON.stringify(data).substring(0,200));
         }
       } catch(e) {
         console.log('PKCE exchange error:', e);
       }
+    } else if (code && !verifier) {
+      // No verifier — intentar sin PKCE (exchange directo no estándar, último recurso)
+      console.log('No verifier - limpiando URL');
+      history.replaceState(null, '', window.location.pathname);
     }
   }
 
