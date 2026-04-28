@@ -2143,16 +2143,22 @@ window.addEventListener('load', async function() {
       var cloudData = await loadCloud();
       if (cloudData) {
         localStorage.setItem(KEY, JSON.stringify(cloudData));
-        try { S = JSON.parse(JSON.stringify(cloudData)); } catch(e) {}
+        // Recargar S desde el nuevo localStorage
+        try {
+          var raw2 = localStorage.getItem(KEY);
+          if (raw2) S = JSON.parse(raw2);
+        } catch(e2) {}
       }
       var savedPin = localStorage.getItem('finar_pin');
       if (savedPin) {
-        document.getElementById('AUTH_WRAP').style.display = 'none';
+        var aw2 = document.getElementById('AUTH_WRAP');
+        if (aw2) aw2.style.display = 'none';
         lockApp();
       } else {
         entrarApp();
       }
     } catch(e) {
+      console.log('OAuth callback error:', e.message);
       entrarApp();
     }
     return;
