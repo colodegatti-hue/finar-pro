@@ -305,6 +305,7 @@ canvas{display:block;width:100%!important;border-radius:6px}
 .light-mode .card{background:var(--s2)}
 </style>
 <script src="capacitor.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <!-- BODY STRUCTURE -->
@@ -343,17 +344,15 @@ canvas{display:block;width:100%!important;border-radius:6px}
     <div id="auth_error" style="font-size:11px;color:#F04438;min-height:18px;margin-bottom:8px;text-align:center"></div>
     <button id="auth_btn" onclick="doAuth()" style="width:100%;background:#0EA5E9;border:none;border-radius:10px;color:#fff;font-weight:700;font-size:15px;padding:14px;cursor:pointer;margin-bottom:12px">Iniciar sesión</button>
     <button onclick="usarSinCuenta()" style="width:100%;background:transparent;border:1px solid #2a3450;border-radius:10px;color:#666;font-weight:600;font-size:12px;padding:10px;cursor:pointer">Usar sin cuenta (datos locales)</button>
-    <div style="display:flex;align-items:center;gap:8px;margin:14px 0">
-      <div style="flex:1;height:1px;background:#2a3450"></div>
-      <span style="font-size:11px;color:#444">o</span>
-      <div style="flex:1;height:1px;background:#2a3450"></div>
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin:14px 0">
+        <div style="flex:1;height:1px;background:#2a3450"></div>
+        <span style="font-size:11px;color:#444">o</span>
+        <div style="flex:1;height:1px;background:#2a3450"></div>
+      </div>
+      <div id="google_btn_container" style="width:100%;min-height:44px;display:flex;justify-content:center;margin-top:4px"></div>
+      <button onclick="doGoogleAuth()" id="btn_google" style="display:none">Continuar con Google</button>
     </div>
-    <button onclick="doGoogleAuth()" id="btn_google" style="width:100%;background:#fff;border:none;border-radius:10px;color:#222;font-weight:700;font-size:14px;padding:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px">
-      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
-      Continuar con Google
-    </button>
-  </div>
-</div>
 
 <!-- PIN LOCK OVERLAY -->
 <div id="PIN_WRAP" style="display:none;position:fixed;inset:0;background:#0A0E1A;z-index:9999;flex-direction:column;align-items:center;justify-content:center;padding:24px">
@@ -532,13 +531,17 @@ function initSupabase() {
 }
 
 // ── REST helper ───────────────────────────────────────────────────────────────
-async function supaRest(method, path, body, useAuth) {
+async function supaRest(method, path, body, useAuth, extraHeaders) {
   var headers = {
     'Content-Type': 'application/json',
     'apikey': SUPA_KEY,
     'Prefer': 'return=representation'
   };
   if (useAuth && authToken) headers['Authorization'] = 'Bearer ' + authToken;
+  if (extraHeaders) {
+    var keys = Object.keys(extraHeaders);
+    for (var i = 0; i < keys.length; i++) headers[keys[i]] = extraHeaders[keys[i]];
+  }
   var opts = { method: method, headers: headers };
   if (body) opts.body = JSON.stringify(body);
   var r = await fetch(SUPA_URL + path, opts);
@@ -580,40 +583,160 @@ var supabaseAuth = {
   }
 };
 
-// ── Google OAuth ──────────────────────────────────────────────────────────────
-function doGoogleAuth() {
-  var btn = document.getElementById('btn_google');
-  if (btn) { btn.textContent = 'Redirigiendo...'; btn.disabled = true; }
-  var redirectTo = window.location.origin + window.location.pathname;
-  var url = SUPA_URL + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(redirectTo);
-  window.location.href = url;
+// ── Google OAuth (PKCE) ───────────────────────────────────────────────────────
+function generateRandom(len) {
+  var arr = new Uint8Array(len);
+  window.crypto.getRandomValues(arr);
+  return Array.from(arr).map(function(b) { return ('0' + b.toString(16)).slice(-2); }).join('');
 }
 
-function handleOAuthCallback() {
-  var hash = window.location.hash;
-  if (!hash || hash.indexOf('access_token') === -1) return false;
-  var params = {};
-  hash.replace('#', '').split('&').forEach(function(p) {
-    var kv = p.split('=');
-    params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || '');
-  });
-  if (params.access_token) {
-    authToken = params.access_token;
-    currentUser = { id: params.user_id || 'google_user', email: '' };
-    // Fetch user info with the token
-    fetch(SUPA_URL + '/auth/v1/user', {
-      headers: { 'Authorization': 'Bearer ' + authToken, 'apikey': SUPA_KEY }
-    }).then(function(r) { return r.json(); }).then(function(u) {
-      if (u && u.id) {
-        currentUser = u;
-        localStorage.setItem('finar_session', JSON.stringify({access_token: authToken, user: currentUser}));
+async function generateCodeChallenge(verifier) {
+  var enc = new TextEncoder();
+  var data = enc.encode(verifier);
+  var digest = await window.crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode.apply(null, new Uint8Array(digest)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+var GOOGLE_CLIENT_ID = '976198994553-4dmv2i94jel6remftsoo3m64du6u3uq4.apps.googleusercontent.com';
+
+async function handleGoogleCredential(response) {
+  var idToken = response.credential;
+  var errDiv = document.getElementById('auth_error');
+  if (errDiv) errDiv.textContent = 'Conectando con Google...';
+  try {
+    var r = await fetch(SUPA_URL + '/auth/v1/token?grant_type=id_token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY },
+      body: JSON.stringify({ provider: 'google', id_token: idToken })
+    });
+    var data = await r.json();
+    console.log('Supabase ID token response:', r.status, JSON.stringify(data).substring(0, 200));
+    if (data.access_token) {
+      authToken = data.access_token;
+      currentUser = data.user;
+      localStorage.setItem('finar_session', JSON.stringify({access_token: authToken, user: currentUser}));
+      try {
+        var cloudData = await loadCloud();
+        if (cloudData) {
+          localStorage.setItem(KEY, JSON.stringify(cloudData));
+          try { S = JSON.parse(JSON.stringify(cloudData)); } catch(e2) {}
+        }
+      } catch(e3) {}
+      var savedPin = localStorage.getItem('finar_pin');
+      if (savedPin) {
+        document.getElementById('AUTH_WRAP').style.display = 'none';
+        lockApp();
+      } else {
+        entrarApp();
       }
-    }).catch(function() {});
-    localStorage.setItem('finar_session', JSON.stringify({access_token: authToken, user: currentUser}));
-    // Limpiar hash de la URL
-    history.replaceState(null, '', window.location.pathname);
-    return true;
+    } else {
+      var msg = data.error_description || data.msg || data.error || 'Error con Google';
+      console.log('Error Supabase:', msg);
+      if (errDiv) errDiv.textContent = msg;
+    }
+  } catch(e) {
+    console.log('Google auth error:', e);
+    if (errDiv) errDiv.textContent = 'Error de conexion: ' + e.message;
   }
+}
+
+function initGoogleSignIn() {
+  if (typeof google === 'undefined' || !google.accounts) {
+    setTimeout(initGoogleSignIn, 300);
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleCredential,
+    ux_mode: 'popup',
+    cancel_on_tap_outside: false
+  });
+  var container = document.getElementById('google_btn_container');
+  if (container) {
+    google.accounts.id.renderButton(container, {
+      type: 'standard',
+      shape: 'rectangular',
+      theme: 'outline',
+      text: 'continue_with',
+      size: 'large',
+      locale: 'es',
+      width: container.offsetWidth || 300
+    });
+  }
+}
+
+function doGoogleAuth() {
+  // Fallback por si el botón renderizado no funciona
+  if (typeof google !== 'undefined' && google.accounts) {
+    google.accounts.id.prompt();
+  }
+}
+
+async function handleOAuthCallback() {
+  var search = window.location.search;
+  var hash = window.location.hash;
+  console.log('OAuth callback check - search:', search, 'hash:', hash);
+
+  // Caso: Supabase devolvió error
+  if (search && search.indexOf('error=') !== -1) {
+    var qp = {};
+    search.replace('?','').split('&').forEach(function(p) {
+      var kv = p.split('='); qp[decodeURIComponent(kv[0])] = decodeURIComponent((kv[1]||'').replace(/\+/g,' '));
+    });
+    console.log('Supabase error:', qp.error, qp.error_description || qp.error_code);
+    history.replaceState(null, '', window.location.pathname);
+    return false;
+  }
+
+  // Caso 1: token en hash (implicit flow)
+  if (hash && hash.indexOf('access_token') !== -1) {
+    var params = {};
+    hash.replace('#','').split('&').forEach(function(p) {
+      var kv = p.split('='); params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1]||'');
+    });
+    if (params.access_token) {
+      console.log('OAuth: token en hash OK');
+      authToken = params.access_token;
+      currentUser = { id: params.user_id || 'google_user', email: '' };
+      localStorage.setItem('finar_session', JSON.stringify({access_token: authToken, user: currentUser}));
+      history.replaceState(null, '', window.location.pathname);
+      return true;
+    }
+  }
+
+  // Caso 2: code en query string (PKCE flow)
+  if (search && search.indexOf('code=') !== -1) {
+    var qparams = {};
+    search.replace('?','').split('&').forEach(function(p) {
+      var kv = p.split('='); qparams[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1]||'');
+    });
+    var code = qparams['code'];
+    var verifier = sessionStorage.getItem('pkce_verifier');
+    console.log('OAuth PKCE: code=', code ? code.substring(0,20)+'...' : 'null', 'verifier=', verifier ? 'OK' : 'MISSING');
+    if (code && verifier) {
+      try {
+        var resp = await fetch(SUPA_URL + '/auth/v1/token?grant_type=pkce', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY },
+          body: JSON.stringify({ auth_code: code, code_verifier: verifier })
+        });
+        var data = await resp.json();
+        console.log('PKCE exchange response:', JSON.stringify(data).substring(0,200));
+        if (data.access_token) {
+          authToken = data.access_token;
+          currentUser = data.user;
+          localStorage.setItem('finar_session', JSON.stringify({access_token: authToken, user: currentUser}));
+          sessionStorage.removeItem('pkce_verifier');
+          history.replaceState(null, '', window.location.pathname);
+          return true;
+        }
+      } catch(e) {
+        console.log('PKCE exchange error:', e);
+      }
+    }
+  }
+
   return false;
 }
 
@@ -625,7 +748,7 @@ async function saveCloud(data) {
       user_id: currentUser.id,
       data: data,
       updated_at: new Date().toISOString()
-    }, true);
+    }, true, { 'Prefer': 'resolution=merge-duplicates' });
   } catch(e) {
     console.log('Error guardando en nube:', e.message);
   }
@@ -1759,8 +1882,10 @@ function usarSinCuenta() {
 }
 
 function entrarApp() {
-  document.getElementById('AUTH_WRAP').style.display = 'none';
-  document.getElementById('APP_WRAP').style.display = 'block';
+  var aw = document.getElementById('AUTH_WRAP');
+  var apw = document.getElementById('APP_WRAP');
+  if (aw) aw.style.display = 'none';
+  if (apw) apw.style.display = 'block';
   resetPinTimer();
   APP.render();
 }
@@ -1865,6 +1990,7 @@ function checkPinLock(isActive) {
 // Inicializar listener cuando Capacitor esté listo
 document.addEventListener('deviceready', initAppStateListener);
 window.addEventListener('load', function() { setTimeout(initAppStateListener, 1000); });
+window.addEventListener('load', function() { setTimeout(initGoogleSignIn, 500); });
 
 // ═══════════════════════════════════════════════════════════
 // NOTIFICACIONES PUSH - LOCAL NOTIFICATIONS
@@ -2044,9 +2170,12 @@ function lockApp() {
 function cerrarSesion() {
   supabaseAuth.signOut();
   currentUser = null;
-  document.getElementById('PIN_WRAP').style.display = 'none';
-  document.getElementById('AUTH_WRAP').style.display = 'flex';
-  document.getElementById('APP_WRAP').style.display = 'none';
+  var pw = document.getElementById('PIN_WRAP');
+  var aw = document.getElementById('AUTH_WRAP');
+  var apw = document.getElementById('APP_WRAP');
+  if (pw) pw.style.display = 'none';
+  if (aw) aw.style.display = 'flex';
+  if (apw) apw.style.display = 'none';
 }
 
 // Reset timer on any user interaction
@@ -2056,11 +2185,13 @@ document.addEventListener('click', resetPinTimer);
 // ── Startup ───────────────────────────────────────────────────────────────────
 window.addEventListener('load', async function() {
   // Always show auth screen first
-  document.getElementById('AUTH_WRAP').style.display = 'flex';
-  document.getElementById('APP_WRAP').style.display = 'none';
+  var _aw = document.getElementById('AUTH_WRAP');
+  var _apw = document.getElementById('APP_WRAP');
+  if (_aw) _aw.style.display = 'flex';
+  if (_apw) _apw.style.display = 'none';
 
   // Detectar callback de Google OAuth
-  if (handleOAuthCallback()) {
+  if (await handleOAuthCallback()) {
     // Viene de Google, ya tiene token — entrar directo
     try {
       var cloudData = await loadCloud();
