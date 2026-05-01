@@ -342,7 +342,7 @@ canvas{display:block;width:100%!important;border-radius:6px}
     </div>
     <div id="auth_error" style="font-size:11px;color:#F04438;min-height:18px;margin-bottom:8px;text-align:center"></div>
     <button id="auth_btn" onclick="doAuth()" style="width:100%;background:#0EA5E9;border:none;border-radius:10px;color:#fff;font-weight:700;font-size:15px;padding:14px;cursor:pointer;margin-bottom:12px">Iniciar sesión</button>
-    <button onclick="usarSinCuenta()" style="width:100%;background:transparent;border:1px solid #2a3450;border-radius:10px;color:#666;font-weight:600;font-size:12px;padding:10px;cursor:pointer">Usar sin cuenta (datos locales)</button>
+    <button onclick="usarSinCuenta()" style="width:100%;background:transparent;border:1px solid #2a3450;border-radius:10px;color:#666;font-weight:600;font-size:12px;padding:10px;cursor:pointer">Usar sin cuenta (datos locales)</button><div id="auth_huella_box" style="display:none;margin-top:14px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><div style="flex:1;height:1px;background:#2a3450"></div><span style="font-size:11px;color:#444">acceso rápido</span><div style="flex:1;height:1px;background:#2a3450"></div></div><div id="auth_saved_email_label" style="font-size:12px;color:#0EA5E9;font-weight:700;margin-bottom:12px;text-align:center;word-break:break-all"></div><button onclick="usarHuellaAuth()" id="btn_huella_auth" style="width:100%;background:#1a2235;border:1px solid #0EA5E9;border-radius:10px;color:#0EA5E9;font-weight:700;font-size:15px;padding:14px;cursor:pointer;margin-bottom:8px">&#128404; Ingresar con huella</button><button onclick="usarOtraCuenta()" style="width:100%;background:transparent;border:none;color:#555;font-size:11px;cursor:pointer;padding:6px">Cambiar de cuenta</button></div>
     <div>
       <div style="display:flex;align-items:center;gap:8px;margin:14px 0">
         <div style="flex:1;height:1px;background:#2a3450"></div>
@@ -379,7 +379,8 @@ canvas{display:block;width:100%!important;border-radius:6px}
     <button onclick="pinKey('del')" style="height:64px;background:#1a2235;border:1px solid #2a3450;border-radius:12px;color:#F04438;font-size:18px;cursor:pointer">⌫</button>
   </div>
   <div id="pin_error" style="font-size:11px;color:#F04438;min-height:18px;margin-top:12px;text-align:center"></div>
-  <button onclick="cerrarSesion()" style="margin-top:20px;background:transparent;border:none;color:#444;font-size:11px;cursor:pointer">Cerrar sesión</button>
+  <button id="btn_huella" onclick="usarHuella()" style="display:none;margin-top:16px;background:#1a2235;border:1px solid #2a3450;border-radius:12px;color:#0EA5E9;font-size:14px;font-weight:700;padding:14px 32px;cursor:pointer;width:100%;max-width:226px">&#128404; Usar huella</button>
+  <button onclick="cerrarSesion()" style="margin-top:12px;background:transparent;border:none;color:#444;font-size:11px;cursor:pointer">Cerrar sesión</button>
 </div>
 
 <div id="CONFIRM_WRAP" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99;align-items:center;justify-content:center;padding:20px">
@@ -484,7 +485,7 @@ window.APP = {nav:function(){},openFab:function(){},closeMbd:function(){},closeM
   sincronizarDatos:function(){},sincronizarCedears:function(){},modalAddPrest:function(){},
   savePrest:function(){},modalPagarPrest:function(){},modalSimNuevo:function(){},
   modalSimUVA:function(){},configurarPIN:function(){},cambiarPIN:function(){},
-  borrarPIN:function(){},bloquearAhora:function(){},reprogramarNotifs:function(){},
+  borrarPIN:function(){},bloquearAhora:function(){},reprogramarNotifs:function(){},activarHuella:function(){},borrarHuella:function(){},
   toggleAnalisis:function(){},exportarBackup:function(){},importarBackup:function(){}};
 
 // ═══════════════════════════════════════════════════════════
@@ -1846,6 +1847,10 @@ function usarSinCuenta() {
 }
 
 function entrarApp() {
+  var _ae = document.getElementById('auth_email');
+  if (_ae && _ae.value && _ae.value.trim()) {
+    localStorage.setItem('finar_saved_email', _ae.value.trim());
+  }
   var aw = document.getElementById('AUTH_WRAP');
   var apw = document.getElementById('APP');
   if (aw) aw.style.display = 'none';
@@ -1863,7 +1868,188 @@ function entrarApp() {
   }
 }
 
-// ── PIN functions ─────────────────────────────────────────────────────────────
+// ── Huella dactilar (WebAuthn) ────────────────────────────────────────────────
+var WEBAUTHN_KEY = 'finar_webauthn_id';
+
+function huellaDisponible() {
+  return !!(window.PublicKeyCredential && navigator.credentials);
+}
+
+function mostrarBtnHuella() {
+  var btn = document.getElementById('btn_huella');
+  if (btn && huellaDisponible() && localStorage.getItem(WEBAUTHN_KEY)) {
+    btn.style.display = 'block';
+  }
+}
+
+function strToAb(str) {
+  var enc = new TextEncoder();
+  return enc.encode(str);
+}
+
+function abToB64(ab) {
+  var bytes = new Uint8Array(ab);
+  var bin = '';
+  for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+function b64ToAb(b64) {
+  var bin = atob(b64);
+  var ab = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) ab[i] = bin.charCodeAt(i);
+  return ab.buffer;
+}
+
+async function registrarHuella() {
+  if (!huellaDisponible()) return false;
+  try {
+    var userId = (currentUser && currentUser.id) ? currentUser.id : 'finar_user';
+    var challenge = new Uint8Array(32);
+    window.crypto.getRandomValues(challenge);
+    var credential = await navigator.credentials.create({
+      publicKey: {
+        challenge: challenge,
+        rp: { name: 'FinAR Pro', id: window.location.hostname },
+        user: {
+          id: strToAb(userId),
+          name: (currentUser && currentUser.email) ? currentUser.email : 'usuario',
+          displayName: 'FinAR Pro'
+        },
+        pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required'
+        },
+        timeout: 60000
+      }
+    });
+    if (credential) {
+      localStorage.setItem(WEBAUTHN_KEY, abToB64(credential.rawId));
+      return true;
+    }
+  } catch(e) {
+    console.log('Registro huella error:', e.message);
+  }
+  return false;
+}
+
+async function usarHuella() {
+  if (!huellaDisponible()) return;
+  var btn = document.getElementById('btn_huella');
+  var err = document.getElementById('pin_error');
+  if (btn) btn.textContent = 'Verificando...';
+  try {
+    var credId = localStorage.getItem(WEBAUTHN_KEY);
+    if (!credId) { if (btn) btn.textContent = '\u{1F4A4} Usar huella'; return; }
+    var challenge = new Uint8Array(32);
+    window.crypto.getRandomValues(challenge);
+    var assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge: challenge,
+        rpId: window.location.hostname,
+        allowCredentials: [{ type: 'public-key', id: b64ToAb(credId) }],
+        userVerification: 'required',
+        timeout: 60000
+      }
+    });
+    if (assertion) {
+      // Huella verificada
+      document.getElementById('PIN_WRAP').style.display = 'none';
+      document.getElementById('APP').style.display = 'flex';
+      resetPinTimer();
+    }
+  } catch(e) {
+    console.log('Huella error:', e.message);
+    if (err) err.textContent = 'Huella no reconocida. Usá el PIN.';
+    if (btn) btn.textContent = '\u{1F4A4} Usar huella';
+  }
+}
+
+async function ofrecerRegistroHuella() {
+  if (!huellaDisponible()) return;
+  if (localStorage.getItem(WEBAUTHN_KEY)) return; // ya registrada
+  // Preguntar al usuario
+  var resp = await new Promise(function(resolve) {
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+    d.innerHTML = '<div style="background:#1a2235;border:1px solid #2a3450;border-radius:16px;padding:24px;max-width:300px;width:100%;text-align:center"><div style="font-size:36px;margin-bottom:12px">\u{1FAD7}</div><div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:8px">Activar huella dactilar</div><div style="font-size:12px;color:#666;margin-bottom:20px">En\u00e9 m\u00e1s r\u00e1pido sin necesidad de ingresar el PIN</div><div style="display:flex;flex-direction:column;gap:10px"><button id="btn_si_huella" style="background:#0EA5E9;border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;padding:12px;cursor:pointer">S\u00ed, activar</button><button id="btn_no_huella" style="background:transparent;border:none;color:#555;font-size:12px;cursor:pointer">Ahora no</button></div></div>';
+    document.body.appendChild(d);
+    d.querySelector('#btn_si_huella').onclick = function() { document.body.removeChild(d); resolve(true); };
+    d.querySelector('#btn_no_huella').onclick = function() { document.body.removeChild(d); resolve(false); };
+  });
+  if (resp) {
+    var ok = await registrarHuella();
+    if (ok) {
+      var t = document.getElementById('TOAST');
+      if (t) { t.textContent = 'Huella activada \u2713'; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2500); }
+    }
+  } else {
+    localStorage.setItem('finar_huella_skip', '1');
+  }
+}
+
+
+function iniciarModoAuth() {
+  if (!huellaDisponible()) return;
+  var credId = localStorage.getItem(WEBAUTHN_KEY);
+  var savedEmail = localStorage.getItem('finar_saved_email');
+  if (!credId || !savedEmail) return;
+  var box = document.getElementById('auth_huella_box');
+  var label = document.getElementById('auth_saved_email_label');
+  var emailInput = document.getElementById('auth_email');
+  if (box) box.style.display = 'block';
+  if (label) label.textContent = savedEmail;
+  if (emailInput) emailInput.value = savedEmail;
+}
+
+function usarOtraCuenta() {
+  localStorage.removeItem('finar_saved_email');
+  localStorage.removeItem(WEBAUTHN_KEY);
+  localStorage.removeItem('finar_huella_skip');
+  var box = document.getElementById('auth_huella_box');
+  if (box) box.style.display = 'none';
+  var emailInput = document.getElementById('auth_email');
+  if (emailInput) emailInput.value = '';
+  var passInput = document.getElementById('auth_pass');
+  if (passInput) passInput.value = '';
+}
+
+async function usarHuellaAuth() {
+  if (!huellaDisponible()) return;
+  var btn = document.getElementById('btn_huella_auth');
+  var err = document.getElementById('auth_error');
+  if (btn) btn.textContent = 'Verificando...';
+  if (err) err.textContent = '';
+  try {
+    var credId = localStorage.getItem(WEBAUTHN_KEY);
+    if (!credId) {
+      if (btn) btn.textContent = '&#128404; Ingresar con huella';
+      return;
+    }
+    var challenge = new Uint8Array(32);
+    window.crypto.getRandomValues(challenge);
+    var assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge: challenge,
+        rpId: window.location.hostname,
+        allowCredentials: [{ type: 'public-key', id: b64ToAb(credId) }],
+        userVerification: 'required',
+        timeout: 60000
+      }
+    });
+    if (assertion) {
+      var aw = document.getElementById('AUTH_WRAP');
+      if (aw) aw.style.display = 'none';
+      entrarApp();
+    }
+  } catch(e) {
+    console.log('Huella auth error:', e.message);
+    if (btn) btn.textContent = '&#128404; Ingresar con huella';
+    if (err) err.textContent = 'Huella no reconocida. Ingresá tu contraseña.';
+  }
+}
+
 function pinKey(k) {
   var errDiv = document.getElementById('pin_error');
   errDiv.textContent = '';
@@ -1885,11 +2071,17 @@ function pinKey(k) {
       pinBuffer = '';
       document.getElementById('PIN_WRAP').style.display = 'none';
       entrarApp();
+      if (!localStorage.getItem('finar_huella_skip')) {
+        setTimeout(ofrecerRegistroHuella, 800);
+      }
     } else if (pinBuffer === savedPin) {
       pinBuffer = '';
       document.getElementById('PIN_WRAP').style.display = 'none';
       document.getElementById('APP').style.display = 'flex';
       resetPinTimer();
+      if (!localStorage.getItem(WEBAUTHN_KEY) && !localStorage.getItem('finar_huella_skip')) {
+        setTimeout(ofrecerRegistroHuella, 800);
+      }
     } else {
       errDiv.textContent = 'PIN incorrecto';
       pinBuffer = '';
@@ -2136,6 +2328,12 @@ function lockApp() {
   }
   var err = document.getElementById('pin_error');
   if (err) err.textContent = '';
+  // Mostrar botón huella si está registrada
+  mostrarBtnHuella();
+  // Auto-lanzar huella si está registrada
+  if (huellaDisponible() && localStorage.getItem(WEBAUTHN_KEY)) {
+    setTimeout(usarHuella, 400);
+  }
 }
 
 function cerrarSesion() {
@@ -2206,17 +2404,23 @@ window.addEventListener('load', async function() {
     
     if (result && result.data && result.data.session) {
       currentUser = result.data.session.user;
-      var cloudData = await loadCloud();
-      if (cloudData) {
-        localStorage.setItem(KEY, JSON.stringify(cloudData));
-        try { S = JSON.parse(JSON.stringify(cloudData)); } catch(e) {}
+      try {
+        var cloudData = await loadCloud();
+        if (cloudData) {
+          localStorage.setItem(KEY, JSON.stringify(cloudData));
+          try { S = JSON.parse(JSON.stringify(cloudData)); } catch(e2) {}
+        }
+      } catch(cloudErr) {
+        console.log('loadCloud fallo, usando datos locales:', cloudErr.message);
       }
       var savedPin = localStorage.getItem('finar_pin');
       if (savedPin) {
-        document.getElementById('AUTH_WRAP').style.display = 'none';
+        var aw3 = document.getElementById('AUTH_WRAP');
+        if (aw3) aw3.style.display = 'none';
         lockApp();
       } else {
-        console.log('Startup: llamando entrarApp(), APP.render type=', typeof APP.render);
+        iniciarModoAuth();
+      console.log('Startup: llamando entrarApp(), APP.render type=', typeof APP.render);
         entrarApp();
       }
     }
@@ -5192,7 +5396,28 @@ function generarAnalisisMes(ci) {
   function borrarPIN() {
     localStorage.removeItem('finar_pin');
     localStorage.removeItem('finar_pin_setup');
+    // También borrar huella al desactivar PIN
+    localStorage.removeItem('finar_webauthn_id');
+    localStorage.removeItem('finar_huella_skip');
     toast('PIN desactivado');
+    APP.render();
+  }
+
+  async function activarHuella() {
+    localStorage.removeItem('finar_huella_skip');
+    var ok = await registrarHuella();
+    if (ok) {
+      toast('Huella activada \u2713');
+      APP.render();
+    } else {
+      toast('No se pudo activar la huella');
+    }
+  }
+
+  function borrarHuella() {
+    localStorage.removeItem('finar_webauthn_id');
+    localStorage.removeItem('finar_huella_skip');
+    toast('Huella desactivada');
     APP.render();
   }
 
@@ -5675,6 +5900,21 @@ function generarAnalisisMes(ci) {
       html += '<button class="btn btn-p btn-sm btn-w" data-action="configurarPIN">Activar PIN de seguridad</button>';
     }
     html += '</div>';
+
+    // Huella dactilar
+    if (pinGuardado) {
+      var huellaRegistrada = !!localStorage.getItem('finar_webauthn_id');
+      html += '<div class="card"><div class="sec">Huella dactilar</div>';
+      if (huellaRegistrada) {
+        html += '<div style="font-size:11px;color:var(--dim);margin-bottom:10px">\u2705 Huella activada. La app pedira tu huella al bloquearse.</div>';
+        html += '<button class="btn btn-d btn-sm btn-w" data-action="borrarHuella">Desactivar huella</button>';
+      } else {
+        html += '<div style="font-size:11px;color:var(--dim);margin-bottom:10px">Entra mas rapido sin escribir el PIN usando tu huella dactilar.</div>';
+        html += '<button class="btn btn-p btn-sm btn-w" data-action="activarHuella">Activar huella dactilar</button>';
+      }
+      html += '</div>';
+    }
+
 
     // Notificaciones config
     html += '<div class="card"><div class="sec">Recordatorios</div>';
@@ -6421,7 +6661,7 @@ function generarAnalisisMes(ci) {
 
   // Public API
   return {
-    nav: nav, openFab: openFab, closeMbd: closeMbd, closeM: closeM, analizarTC: analizarTC, modalAjusteSaldo: modalAjusteSaldo, confirmarAjusteSaldo: confirmarAjusteSaldo, modalAddMeta: modalAddMeta, saveMeta: saveMeta, editMeta: editMeta, addPresupuesto: addPresupuesto, exportarBackup: exportarBackup, importarBackup: importarBackup, sincronizarCedears: sincronizarCedears, configurarPIN: configurarPIN, cambiarPIN: cambiarPIN, borrarPIN: borrarPIN, bloquearAhora: bloquearAhora, reprogramarNotifs: reprogramarNotifs, toggleAnalisis: toggleAnalisis, setTema: setTema, irMes: irMes, moveAccount: moveAccount, delCatTC: delCatTC, modalAddCatTC: modalAddCatTC, modalEditCatTC: modalEditCatTC, saveEditCatTC: saveEditCatTC, saveNewCatTC: saveNewCatTC, exportarPDF: exportarPDF, fabIngreso: fabIngreso, fabGasto: fabGasto, fabTransferencia: fabTransferencia, fabGastoTC: fabGastoTC, onDescChange: onDescChange, toggleUVAFields: toggleUVAFields, calcCuotaUVAPreview: calcCuotaUVAPreview, calcAdelantoUVA: calcAdelantoUVA, toggleIntell: toggleIntell, toggleCuotas: toggleCuotas, modalReabrirTC: modalReabrirTC, confirmarReabrirTC: confirmarReabrirTC, calcTC: calcTC, calcTCPreview: calcTCPreview, modalEditCuotaTC: modalEditCuotaTC, saveEditCuotaTC: saveEditCuotaTC, previewEditTC: previewEditTC,
+    nav: nav, openFab: openFab, closeMbd: closeMbd, closeM: closeM, analizarTC: analizarTC, modalAjusteSaldo: modalAjusteSaldo, confirmarAjusteSaldo: confirmarAjusteSaldo, modalAddMeta: modalAddMeta, saveMeta: saveMeta, editMeta: editMeta, addPresupuesto: addPresupuesto, exportarBackup: exportarBackup, importarBackup: importarBackup, sincronizarCedears: sincronizarCedears, configurarPIN: configurarPIN, cambiarPIN: cambiarPIN, borrarPIN: borrarPIN, bloquearAhora: bloquearAhora, reprogramarNotifs: reprogramarNotifs, activarHuella: activarHuella, borrarHuella: borrarHuella, toggleAnalisis: toggleAnalisis, setTema: setTema, irMes: irMes, moveAccount: moveAccount, delCatTC: delCatTC, modalAddCatTC: modalAddCatTC, modalEditCatTC: modalEditCatTC, saveEditCatTC: saveEditCatTC, saveNewCatTC: saveNewCatTC, exportarPDF: exportarPDF, fabIngreso: fabIngreso, fabGasto: fabGasto, fabTransferencia: fabTransferencia, fabGastoTC: fabGastoTC, onDescChange: onDescChange, toggleUVAFields: toggleUVAFields, calcCuotaUVAPreview: calcCuotaUVAPreview, calcAdelantoUVA: calcAdelantoUVA, toggleIntell: toggleIntell, toggleCuotas: toggleCuotas, modalReabrirTC: modalReabrirTC, confirmarReabrirTC: confirmarReabrirTC, calcTC: calcTC, calcTCPreview: calcTCPreview, modalEditCuotaTC: modalEditCuotaTC, saveEditCuotaTC: saveEditCuotaTC, previewEditTC: previewEditTC,
     del: del, render: render, toggleTheme: toggleTheme, exportCSV: exportCSV,
     inicioNav: inicioNav, agNav: agNav, tcNav: tcNav, toggleProy5: toggleProy5,
     setMovFiltro: setMovFiltro, setMovCuenta: setMovCuenta, setMovBusq: setMovBusq,
@@ -6569,6 +6809,8 @@ document.addEventListener('click', function(e) {
   if (action === 'reprogramarNotifs') { APP.reprogramarNotifs(); return; }
   if (action === 'cambiarPIN') { APP.cambiarPIN(); return; }
   if (action === 'borrarPIN') { APP.borrarPIN(); return; }
+  if (action === 'activarHuella') { APP.activarHuella(); return; }
+  if (action === 'borrarHuella') { APP.borrarHuella(); return; }
   if (action === 'bloquearAhora') { APP.bloquearAhora(); return; }
   if (action === 'editMeta') { APP.editMeta(btn.getAttribute('data-id')); return; }
   if (action === 'saveMeta') { APP.saveMeta(btn.getAttribute('data-id')); return; }
