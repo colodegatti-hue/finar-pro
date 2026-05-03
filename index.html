@@ -1851,6 +1851,9 @@ function entrarApp() {
   if (_ae && _ae.value && _ae.value.trim()) {
     localStorage.setItem('finar_saved_email', _ae.value.trim());
   }
+  var _awG = document.getElementById('AUTH_WRAP');
+  var _apG = document.getElementById('APP');
+  if (!_apG) { if (_awG) _awG.style.display = 'flex'; return; }
   var aw = document.getElementById('AUTH_WRAP');
   var apw = document.getElementById('APP');
   if (aw) aw.style.display = 'none';
@@ -2421,10 +2424,11 @@ window.addEventListener('load', async function() {
       } else {
         iniciarModoAuth();
       console.log('Startup: llamando entrarApp(), APP.render type=', typeof APP.render);
-        entrarApp();
+        try { entrarApp(); } catch(eRender) { console.log('render error en startup:', eRender.message); var _f1=document.getElementById('AUTH_WRAP'); var _f2=document.getElementById('APP'); if(_f1)_f1.style.display='flex'; if(_f2)_f2.style.display='none'; }
       }
     }
     // If no session, stay on auth screen
+      iniciarModoAuth();
   } catch(e) {
     console.log('Error al verificar sesion:', e.message);
     // Stay on auth screen
