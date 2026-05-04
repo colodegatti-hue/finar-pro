@@ -1857,7 +1857,7 @@ function entrarApp() {
   var aw = document.getElementById('AUTH_WRAP');
   var apw = document.getElementById('APP');
   if (aw) aw.style.display = 'none';
-  if (apw) apw.style.display = 'flex';
+  if (apw) { apw.style.display = 'flex'; apw.style.width = '100%'; }
   resetPinTimer();
   try {
     if (typeof APP === 'undefined' || !APP) {
