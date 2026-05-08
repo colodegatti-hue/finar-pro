@@ -409,6 +409,8 @@ canvas{display:block;width:100%!important;border-radius:6px}
     <div id="DAILY_POPUP_BODY"></div>
   </div>
 </div>
+</div>
+</div>
 <div id="APP">
   <div id="TOPBAR">
     <div class="logo-wrap">
@@ -1856,8 +1858,8 @@ function entrarApp() {
   if (!_apG) { if (_awG) _awG.style.display = 'flex'; return; }
   var aw = document.getElementById('AUTH_WRAP');
   var apw = document.getElementById('APP');
-  if (aw) aw.style.display = 'none';
-  if (apw) { apw.style.display = 'flex'; apw.style.width = '100%'; }
+  if (apw) { if (apw.parentElement !== document.body) document.body.appendChild(apw); apw.style.cssText = 'display:flex;position:fixed;inset:0;flex-direction:column;width:100%;height:100%;z-index:9999;background:var(--bg,#0A0E1A);overflow:hidden;'; }
+  if (aw) { aw.style.background = 'transparent'; aw.style.pointerEvents = 'none'; aw.style.zIndex = 'auto'; }
   resetPinTimer();
   try {
     if (typeof APP === 'undefined' || !APP) {
@@ -2043,7 +2045,7 @@ async function usarHuellaAuth() {
     });
     if (assertion) {
       var aw = document.getElementById('AUTH_WRAP');
-      if (aw) aw.style.display = 'none';
+  if (aw) { aw.style.background = 'transparent'; aw.style.pointerEvents = 'none'; aw.style.zIndex = 'auto'; }
       entrarApp();
     }
   } catch(e) {
@@ -2346,7 +2348,7 @@ function cerrarSesion() {
   var aw = document.getElementById('AUTH_WRAP');
   var apw = document.getElementById('APP');
   if (pw) pw.style.display = 'none';
-  if (aw) aw.style.display = 'flex';
+  if (aw) { aw.style.display = 'flex'; aw.style.background = '#0A0E1A'; aw.style.pointerEvents = ''; aw.style.zIndex = '10000'; aw.style.visibility = 'visible'; }
   if (apw) apw.style.display = 'none';
 }
 
@@ -2359,7 +2361,7 @@ window.addEventListener('load', async function() {
   // Always show auth screen first
   var _aw = document.getElementById('AUTH_WRAP');
   var _apw = document.getElementById('APP');
-  if (_aw) _aw.style.display = 'flex';
+  if (_aw) { _aw.style.display = 'flex'; _aw.style.background = '#0A0E1A'; _aw.style.visibility = 'visible'; _aw.style.pointerEvents = ''; _aw.style.zIndex = '10000'; }
   if (_apw) _apw.style.display = 'none';
 
   // Detectar callback de Google OAuth
@@ -5257,7 +5259,7 @@ function generarAnalisisMes(ci) {
     html += '<div style="font-size:9px;color:var(--dim);margin-top:3px">Cuanto podes pagar de mas por mes para cancelar antes</div>';
     html += '</div>';
     html += '<div id="sim_deudas_result">' + renderSimDeudasResult(0) + '</div>';
-    html += '</div>';
+    html += '';
     return html;
   }
 
@@ -6996,6 +6998,6 @@ window.addEventListener('load', function() {
 });
 </script>
 
-</div><!-- /APP_WRAP -->
+<!-- /APP_WRAP -->
 </body>
 </html>
