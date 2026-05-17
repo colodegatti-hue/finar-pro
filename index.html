@@ -2550,6 +2550,124 @@ var APP = (function() {
   }
 
   // ── MODAL ─────────────────────────────────────────────
+  
+  function detalleCategoria(catName) {
+    var y = viewY, m = viewM;
+    // Movimientos de esta categoria en el mes actual
+    var movsCat = movsDelMes(y, m).filter(function(mv) {
+      return mv.tipo === "gasto" && mv.cat === catName;
+    }).sort(function(a, b) { return new Date(b.fecha) - new Date(a.fecha); });
+    var totalCat = movsCat.reduce(function(s, mv) { return s + mv.monto; }, 0);
+    var totalMes = gasMov(y, m);
+    var pct = totalMes > 0 ? (totalCat / totalMes * 100).toFixed(1) : 0;
+
+    // Evolucion ultimos 6 meses
+    var evoData = [];
+    var maxEvo = 0;
+    for (var i = 5; i >= 0; i--) {
+      var em = m - i;
+      var ey = y;
+      while (em < 0) { em += 12; ey--; }
+      var catMes = catGastos(ey, em);
+      var found = catMes.filter(function(c) { return c.n === catName; });
+      var val = found.length > 0 ? found[0].v : 0;
+      if (val > maxEvo) maxEvo = val;
+      evoData.push({ label: MC[em].substring(0, 3), value: val, y: ey, m: em });
+    }
+
+    // Subcategorias (agrupar por descripcion)
+    var subMap = {};
+    movsCat.forEach(function(mv) {
+      var key = mv.desc || "Sin descripcion";
+      if (!subMap[key]) subMap[key] = { total: 0, count: 0 };
+      subMap[key].total += mv.monto;
+      subMap[key].count++;
+    });
+    var subs = Object.keys(subMap).map(function(k) {
+      return { desc: k, total: subMap[k].total, count: subMap[k].count };
+    }).sort(function(a, b) { return b.total - a.total; });
+
+    // Color de la categoria
+    var cats = catGastos(y, m);
+    var catIdx = 0;
+    for (var ci = 0; ci < cats.length; ci++) {
+      if (cats[ci].n === catName) { catIdx = ci; break; }
+    }
+    var catColor = CCOLORS[catIdx % CCOLORS.length];
+
+    // ── Construir modal ──
+    var html = "";
+    html += "<div class=\"mh\"></div>";
+    html += "<div class=\"mt\" style=\"display:flex;align-items:center;gap:10px\">";
+    html += "<div style=\"width:14px;height:14px;border-radius:50%;background:" + catColor + "\"></div>";
+    html += catName + "</div>";
+
+    // Resumen
+    html += "<div style=\"display:flex;gap:10px;margin:12px 0\">";
+    html += "<div style=\"flex:1;background:var(--s3);border-radius:10px;padding:10px;text-align:center\">";
+    html += "<div style=\"font-size:10px;color:var(--dim)\">Total mes</div>";
+    html += "<div style=\"font-size:16px;font-weight:800;color:" + catColor + "\">" + fmt(totalCat) + "</div>";
+    html += "</div>";
+    html += "<div style=\"flex:1;background:var(--s3);border-radius:10px;padding:10px;text-align:center\">";
+    html += "<div style=\"font-size:10px;color:var(--dim)\">% del gasto</div>";
+    html += "<div style=\"font-size:16px;font-weight:800;color:var(--text)\">" + pct + "%</div>";
+    html += "</div>";
+    html += "<div style=\"flex:1;background:var(--s3);border-radius:10px;padding:10px;text-align:center\">";
+    html += "<div style=\"font-size:10px;color:var(--dim)\">Movimientos</div>";
+    html += "<div style=\"font-size:16px;font-weight:800;color:var(--text)\">" + movsCat.length + "</div>";
+    html += "</div></div>";
+
+    // Evolucion 6 meses (barras)
+    html += "<div style=\"margin-bottom:14px\">";
+    html += "<div style=\"font-size:11px;font-weight:700;color:var(--dim);margin-bottom:8px\">EVOLUCION 6 MESES</div>";
+    html += "<div style=\"display:flex;align-items:flex-end;gap:4px;height:60px\">";
+    evoData.forEach(function(ed) {
+      var hPct = maxEvo > 0 ? (ed.value / maxEvo * 100) : 0;
+      var isActive = ed.y === y && ed.m === m;
+      html += "<div style=\"flex:1;display:flex;flex-direction:column;align-items:center;gap:2px\">";
+      html += "<div style=\"font-size:8px;color:var(--dim)\">" + (ed.value > 0 ? fmtK(ed.value) : "-") + "</div>";
+      html += "<div style=\"width:100%;height:" + Math.max(hPct, 3) + "%;background:" + (isActive ? catColor : "var(--s4)") + ";border-radius:3px;min-height:3px\"></div>";
+      html += "<div style=\"font-size:8px;color:" + (isActive ? catColor : "var(--dim)") + ";font-weight:" + (isActive ? "700" : "400") + "\">" + ed.label + "</div>";
+      html += "</div>";
+    });
+    html += "</div></div>";
+
+    // Subcategorias / descripciones agrupadas
+    if (subs.length > 0) {
+      html += "<div style=\"margin-bottom:14px\">";
+      html += "<div style=\"font-size:11px;font-weight:700;color:var(--dim);margin-bottom:8px\">DETALLE POR CONCEPTO</div>";
+      subs.slice(0, 10).forEach(function(sub) {
+        var subPct = totalCat > 0 ? (sub.total / totalCat * 100) : 0;
+        html += "<div style=\"display:flex;align-items:center;gap:6px;margin-bottom:6px\">";
+        html += "<div style=\"flex:1;font-size:11px;color:var(--text)\">" + sub.desc + " <span style=\"color:var(--dim)\">(" + sub.count + ")</span></div>";
+        html += "<div style=\"font-size:11px;font-weight:700;color:" + catColor + "\">" + fmtK(sub.total) + "</div>";
+        html += "</div>";
+        html += "<div style=\"height:3px;background:var(--s3);border-radius:2px;margin-bottom:4px\">";
+        html += "<div style=\"height:100%;width:" + subPct.toFixed(0) + "%;background:" + catColor + ";border-radius:2px\"></div></div>";
+      });
+      html += "</div>";
+    }
+
+    // Lista de movimientos
+    html += "<div style=\"font-size:11px;font-weight:700;color:var(--dim);margin-bottom:8px\">MOVIMIENTOS</div>";
+    if (movsCat.length === 0) {
+      html += "<div style=\"font-size:11px;color:var(--dim);text-align:center;padding:12px\">Sin gastos en esta categoria</div>";
+    } else {
+      movsCat.forEach(function(mv) {
+        var d = new Date(mv.fecha + "T12:00:00");
+        var fechaStr = d.getDate() + " " + MC[d.getMonth()];
+        html += "<div style=\"display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--s3)\">";
+        html += "<div style=\"font-size:10px;color:var(--dim);width:42px\">" + fechaStr + "</div>";
+        html += "<div style=\"flex:1;font-size:11px;color:var(--text)\">" + (mv.desc || catName) + "</div>";
+        html += "<div style=\"font-size:11px;font-weight:700;color:" + catColor + "\">" + fmt(mv.monto) + "</div>";
+        html += "</div>";
+      });
+    }
+
+    html += "<button class=\"btn btn-s btn-w\" data-action=\"closeModal\" style=\"margin-top:12px\">Cerrar</button>";
+    openM(html);
+  }
+
   function openM(html) {
     var wrap = document.getElementById('MODAL_WRAP');
     var box = document.getElementById('MODAL_BOX');
@@ -2871,7 +2989,7 @@ var APP = (function() {
       cats.slice(0, 7).forEach(function(cat, i) {
         var pct = totCats > 0 ? (cat.v / totCats * 100) : 0;
         var col = CCOLORS[i % CCOLORS.length];
-        html += '<div style="display:flex;align-items:center;gap:8px">';
+        html += '<div style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 2px;border-radius:6px" onclick="try{APP.detalleCategoria(\x27' + cat.n.replace(/'/g, '') + '\x27)}catch(e){console.log(e)}" ontouchstart="this.style.background=\'var(--s3)\'" ontouchend="this.style.background=\'\'\'">';
         html += '<div style="width:10px;height:10px;border-radius:50%;background:' + col + ';flex-shrink:0"></div>';
         html += '<div style="flex:1;font-size:11px;font-weight:600;color:var(--text)">' + cat.n + '</div>';
         html += '<div style="font-size:11px;font-family:monospace;font-weight:700;color:' + col + '">' + fmtK(cat.v) + '</div>';
@@ -6668,7 +6786,7 @@ function generarAnalisisMes(ci) {
 
   // Public API
   return {
-    nav: nav, openFab: openFab, closeMbd: closeMbd, closeM: closeM, analizarTC: analizarTC, modalAjusteSaldo: modalAjusteSaldo, confirmarAjusteSaldo: confirmarAjusteSaldo, modalAddMeta: modalAddMeta, saveMeta: saveMeta, editMeta: editMeta, addPresupuesto: addPresupuesto, exportarBackup: exportarBackup, importarBackup: importarBackup, sincronizarCedears: sincronizarCedears, configurarPIN: configurarPIN, cambiarPIN: cambiarPIN, borrarPIN: borrarPIN, bloquearAhora: bloquearAhora, reprogramarNotifs: reprogramarNotifs, activarHuella: activarHuella, borrarHuella: borrarHuella, toggleAnalisis: toggleAnalisis, setTema: setTema, irMes: irMes, moveAccount: moveAccount, delCatTC: delCatTC, modalAddCatTC: modalAddCatTC, modalEditCatTC: modalEditCatTC, saveEditCatTC: saveEditCatTC, saveNewCatTC: saveNewCatTC, exportarPDF: exportarPDF, fabIngreso: fabIngreso, fabGasto: fabGasto, fabTransferencia: fabTransferencia, fabGastoTC: fabGastoTC, onDescChange: onDescChange, toggleUVAFields: toggleUVAFields, calcCuotaUVAPreview: calcCuotaUVAPreview, calcAdelantoUVA: calcAdelantoUVA, toggleIntell: toggleIntell, toggleCuotas: toggleCuotas, modalReabrirTC: modalReabrirTC, confirmarReabrirTC: confirmarReabrirTC, calcTC: calcTC, calcTCPreview: calcTCPreview, modalEditCuotaTC: modalEditCuotaTC, saveEditCuotaTC: saveEditCuotaTC, previewEditTC: previewEditTC,
+    nav: nav, openFab: openFab, closeMbd: closeMbd, closeM: closeM, analizarTC: analizarTC, modalAjusteSaldo: modalAjusteSaldo, confirmarAjusteSaldo: confirmarAjusteSaldo, modalAddMeta: modalAddMeta, saveMeta: saveMeta, editMeta: editMeta, addPresupuesto: addPresupuesto, exportarBackup: exportarBackup, importarBackup: importarBackup, sincronizarCedears: sincronizarCedears, configurarPIN: configurarPIN, cambiarPIN: cambiarPIN, borrarPIN: borrarPIN, bloquearAhora: bloquearAhora, reprogramarNotifs: reprogramarNotifs, activarHuella: activarHuella, detalleCategoria: detalleCategoria, borrarHuella: borrarHuella, toggleAnalisis: toggleAnalisis, setTema: setTema, irMes: irMes, moveAccount: moveAccount, delCatTC: delCatTC, modalAddCatTC: modalAddCatTC, modalEditCatTC: modalEditCatTC, saveEditCatTC: saveEditCatTC, saveNewCatTC: saveNewCatTC, exportarPDF: exportarPDF, fabIngreso: fabIngreso, fabGasto: fabGasto, fabTransferencia: fabTransferencia, fabGastoTC: fabGastoTC, onDescChange: onDescChange, toggleUVAFields: toggleUVAFields, calcCuotaUVAPreview: calcCuotaUVAPreview, calcAdelantoUVA: calcAdelantoUVA, toggleIntell: toggleIntell, toggleCuotas: toggleCuotas, modalReabrirTC: modalReabrirTC, confirmarReabrirTC: confirmarReabrirTC, calcTC: calcTC, calcTCPreview: calcTCPreview, modalEditCuotaTC: modalEditCuotaTC, saveEditCuotaTC: saveEditCuotaTC, previewEditTC: previewEditTC,
     del: del, render: render, toggleTheme: toggleTheme, exportCSV: exportCSV,
     inicioNav: inicioNav, agNav: agNav, tcNav: tcNav, toggleProy5: toggleProy5,
     setMovFiltro: setMovFiltro, setMovCuenta: setMovCuenta, setMovBusq: setMovBusq,
