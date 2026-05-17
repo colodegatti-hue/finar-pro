@@ -7101,21 +7101,7 @@ function confirmDelNo() {
   document.getElementById('CONFIRM_WRAP').style.display = 'none';
 }
 </script>
-<script>
-// FinAR Pro - Deteccion automatica de movimientos
-window.addEventListener('load', function() {
-  setTimeout(function() {
-    try {
-      // Test basico - si esto funciona JavaScript corre bien
-      var testDiv = document.createElement('div');
-      testDiv.id = 'finar_noti_test';
-      testDiv.style.cssText = 'position:fixed;bottom:80px;left:10px;right:10px;background:#1a2744;border:1px solid #3D8EF0;border-radius:12px;padding:12px 14px;z-index:99999;display:flex;align-items:center;gap:10px';
-      testDiv.innerHTML = '<span style="font-size:18px">\uD83D\uDD14</span><div style="flex:1"><div style="font-size:12px;font-weight:700;color:#fff">Deteccion automatica de movimientos</div><div style="font-size:10px;color:#888;margin-top:2px">Habilitá para detectar pagos y transferencias</div></div><button onclick="document.getElementById(\'finar_noti_test\').remove()" style="background:#3D8EF0;border:none;border-radius:8px;color:#fff;font-size:11px;font-weight:700;padding:7px 10px;cursor:pointer">X</button>';
-      document.body.appendChild(testDiv);
-    } catch(e) {}
-  }, 3000);
-});
-</script>
+<!-- Deteccion automatica: desactivada por ahora -->
 
 <!-- /APP_WRAP -->
 </body>
