@@ -1836,6 +1836,7 @@ async function doAuth() {
       localStorage.setItem(KEY, JSON.stringify(cloudData));
     }
     entrarApp();
+    if (huellaDisponible() && !localStorage.getItem(WEBAUTHN_KEY) && !localStorage.getItem("finar_huella_skip")) { setTimeout(ofrecerRegistroHuella, 1500); }
   } catch(e) {
     errDiv.textContent = e.message || 'Error de autenticacion';
     btn.textContent = authMode === 'login' ? 'Iniciar sesion' : 'Registrarse';
