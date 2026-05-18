@@ -3059,18 +3059,6 @@ html += "<button class=\"btn btn-s btn-w\" data-action=\"closeModal\" style=\"ma
         html += '<div style="font-size:8px;color:' + budgetCol + ';white-space:nowrap">' + budgetPct.toFixed(0) + '% de ' + fmtK(budgetLim) + '</div>';
         html += '</div>';
       }
-      // Budget bar si existe presupuesto
-      var presupCat = S.presupuestos ? S.presupuestos.filter(function(p){ return p.cat === cat.n; }) : [];
-      if (presupCat.length > 0) {
-        var budgetLim = presupCat[0].limite;
-        var budgetPct = Math.min(120, cat.v / budgetLim * 100);
-        var budgetCol = budgetPct >= 100 ? 'var(--red)' : budgetPct >= 80 ? 'var(--yellow)' : 'var(--green)';
-        html += '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">';
-        html += '<div style="flex:1;height:3px;background:var(--s3);border-radius:2px">';
-        html += '<div style="height:100%;width:' + Math.min(100, budgetPct).toFixed(0) + '%;background:' + budgetCol + ';border-radius:2px"></div></div>';
-        html += '<div style="font-size:8px;color:' + budgetCol + ';white-space:nowrap">' + budgetPct.toFixed(0) + '% de ' + fmtK(budgetLim) + '</div>';
-        html += '</div>';
-      }
       });
       html += '</div>';
       if (cats.length > 7) html += '<div style="font-size:9px;color:var(--dim);text-align:center;margin-top:4px">+' + (cats.length-7) + ' categorias mas</div>';
