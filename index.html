@@ -2551,6 +2551,30 @@ var APP = (function() {
 
   // ── MODAL ─────────────────────────────────────────────
   
+  
+  function setPresupModal(catName) {
+    var lim = +document.getElementById("modal_presup_lim").value;
+    if (!lim || lim <= 0) { toast("Ingresa un limite valido"); return; }
+    if (!S.presupuestos) S.presupuestos = [];
+    var exists = S.presupuestos.filter(function(p){ return p.cat === catName; });
+    if (exists.length > 0) { exists[0].limite = lim; }
+    else { S.presupuestos.push({id: uid(), cat: catName, limite: lim}); }
+    save(); closeM(); render();
+    toast("Presupuesto de " + catName + " guardado");
+  }
+
+  
+  function setPresupModal(catName) {
+    var lim = +document.getElementById("modal_presup_lim").value;
+    if (!lim || lim <= 0) { toast("Ingresa un limite valido"); return; }
+    if (!S.presupuestos) S.presupuestos = [];
+    var exists = S.presupuestos.filter(function(p){ return p.cat === catName; });
+    if (exists.length > 0) { exists[0].limite = lim; }
+    else { S.presupuestos.push({id: uid(), cat: catName, limite: lim}); }
+    save(); closeM(); render();
+    toast("Presupuesto de " + catName + " guardado");
+  }
+
   function detalleCategoria(catName) {
     var y = viewY, m = viewM;
     // Movimientos de esta categoria en el mes actual
@@ -2663,6 +2687,56 @@ var APP = (function() {
         html += "</div>";
       });
     }
+
+    // Seccion presupuesto
+    var presupExist = S.presupuestos ? S.presupuestos.filter(function(p){ return p.cat === catName; }) : [];
+    html += "<div style=\"margin-top:14px;padding-top:12px;border-top:1px solid var(--s3)\">";
+    html += "<div style=\"font-size:11px;font-weight:700;color:var(--dim);margin-bottom:8px\">PRESUPUESTO MENSUAL</div>";
+    if (presupExist.length > 0) {
+      var pLim = presupExist[0].limite;
+      var pPct = Math.min(120, totalCat / pLim * 100);
+      var pCol = pPct >= 100 ? "var(--red)" : pPct >= 80 ? "var(--yellow)" : "var(--green)";
+      html += "<div style=\"display:flex;justify-content:space-between;margin-bottom:6px\">";
+      html += "<span style=\"font-size:12px;color:" + pCol + ";font-weight:700\">" + fmt(totalCat) + " / " + fmt(pLim) + "</span>";
+      html += "<span style=\"font-size:12px;color:" + pCol + ";font-weight:700\">" + pPct.toFixed(0) + "%</span>";
+      html += "</div>";
+      html += "<div style=\"background:var(--s3);border-radius:20px;height:8px;overflow:hidden;margin-bottom:8px\">";
+      html += "<div style=\"background:" + pCol + ";height:100%;width:" + Math.min(100, pPct).toFixed(0) + "%;border-radius:20px;transition:width .4s\"></div>";
+      html += "</div>";
+      if (pPct >= 100) html += "<div style=\"font-size:10px;color:var(--red);margin-bottom:6px\">⚠ Superaste el limite por " + fmt(totalCat - pLim) + "</div>";
+      else if (pPct >= 80) html += "<div style=\"font-size:10px;color:var(--yellow);margin-bottom:6px\">⚠ Cerca del limite - te queda " + fmt(pLim - totalCat) + "</div>";
+      else html += "<div style=\"font-size:10px;color:var(--green);margin-bottom:6px\">✓ Dentro del presupuesto - te queda " + fmt(pLim - totalCat) + "</div>";
+    }
+    html += "<div style=\"display:flex;gap:6px;align-items:center\">";
+    html += "<input type=\"number\" id=\"modal_presup_lim\" class=\"inp\" placeholder=\"Limite mensual $\" value=\"" + (presupExist.length > 0 ? presupExist[0].limite : "") + "\" style=\"flex:1;font-size:12px\"/>";
+    html += "<button class=\"btn btn-p btn-sm\" onclick=\"try{APP.setPresupModal(\x27" + catName.replace(/'/g, "") + "\x27)}catch(e){console.log(e)}\">" + (presupExist.length > 0 ? "Cambiar" : "Definir") + "</button>";
+    html += "</div>";
+    html += "</div>";
+
+    // Seccion presupuesto
+    var presupExist = S.presupuestos ? S.presupuestos.filter(function(p){ return p.cat === catName; }) : [];
+    html += "<div style=\"margin-top:14px;padding-top:12px;border-top:1px solid var(--s3)\">";
+    html += "<div style=\"font-size:11px;font-weight:700;color:var(--dim);margin-bottom:8px\">PRESUPUESTO MENSUAL</div>";
+    if (presupExist.length > 0) {
+      var pLim = presupExist[0].limite;
+      var pPct = Math.min(120, totalCat / pLim * 100);
+      var pCol = pPct >= 100 ? "var(--red)" : pPct >= 80 ? "var(--yellow)" : "var(--green)";
+      html += "<div style=\"display:flex;justify-content:space-between;margin-bottom:6px\">";
+      html += "<span style=\"font-size:12px;color:" + pCol + ";font-weight:700\">" + fmt(totalCat) + " / " + fmt(pLim) + "</span>";
+      html += "<span style=\"font-size:12px;color:" + pCol + ";font-weight:700\">" + pPct.toFixed(0) + "%</span>";
+      html += "</div>";
+      html += "<div style=\"background:var(--s3);border-radius:20px;height:8px;overflow:hidden;margin-bottom:8px\">";
+      html += "<div style=\"background:" + pCol + ";height:100%;width:" + Math.min(100, pPct).toFixed(0) + "%;border-radius:20px;transition:width .4s\"></div>";
+      html += "</div>";
+      if (pPct >= 100) html += "<div style=\"font-size:10px;color:var(--red);margin-bottom:6px\">⚠ Superaste el limite por " + fmt(totalCat - pLim) + "</div>";
+      else if (pPct >= 80) html += "<div style=\"font-size:10px;color:var(--yellow);margin-bottom:6px\">⚠ Cerca del limite - te queda " + fmt(pLim - totalCat) + "</div>";
+      else html += "<div style=\"font-size:10px;color:var(--green);margin-bottom:6px\">✓ Dentro del presupuesto - te queda " + fmt(pLim - totalCat) + "</div>";
+    }
+    html += "<div style=\"display:flex;gap:6px;align-items:center\">";
+    html += "<input type=\"number\" id=\"modal_presup_lim\" class=\"inp\" placeholder=\"Limite mensual $\" value=\"" + (presupExist.length > 0 ? presupExist[0].limite : "") + "\" style=\"flex:1;font-size:12px\"/>";
+    html += "<button class=\"btn btn-p btn-sm\" onclick=\"try{APP.setPresupModal(\x27" + catName.replace(/'/g, "") + "\x27)}catch(e){console.log(e)}\">" + (presupExist.length > 0 ? "Cambiar" : "Definir") + "</button>";
+    html += "</div>";
+    html += "</div>";
 
     html += "<button class=\"btn btn-s btn-w\" data-action=\"closeModal\" style=\"margin-top:12px\">Cerrar</button>";
     openM(html);
@@ -2998,6 +3072,30 @@ var APP = (function() {
         // Mini progress bar per category
         html += '<div style="height:3px;background:var(--s3);border-radius:2px;margin-bottom:2px">';
         html += '<div style="height:100%;width:' + pct.toFixed(0) + '%;background:' + col + ';border-radius:2px"></div></div>';
+      // Budget bar si existe presupuesto
+      var presupCat = S.presupuestos ? S.presupuestos.filter(function(p){ return p.cat === cat.n; }) : [];
+      if (presupCat.length > 0) {
+        var budgetLim = presupCat[0].limite;
+        var budgetPct = Math.min(120, cat.v / budgetLim * 100);
+        var budgetCol = budgetPct >= 100 ? 'var(--red)' : budgetPct >= 80 ? 'var(--yellow)' : 'var(--green)';
+        html += '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">';
+        html += '<div style="flex:1;height:3px;background:var(--s3);border-radius:2px">';
+        html += '<div style="height:100%;width:' + Math.min(100, budgetPct).toFixed(0) + '%;background:' + budgetCol + ';border-radius:2px"></div></div>';
+        html += '<div style="font-size:8px;color:' + budgetCol + ';white-space:nowrap">' + budgetPct.toFixed(0) + '% de ' + fmtK(budgetLim) + '</div>';
+        html += '</div>';
+      }
+      // Budget bar si existe presupuesto
+      var presupCat = S.presupuestos ? S.presupuestos.filter(function(p){ return p.cat === cat.n; }) : [];
+      if (presupCat.length > 0) {
+        var budgetLim = presupCat[0].limite;
+        var budgetPct = Math.min(120, cat.v / budgetLim * 100);
+        var budgetCol = budgetPct >= 100 ? 'var(--red)' : budgetPct >= 80 ? 'var(--yellow)' : 'var(--green)';
+        html += '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">';
+        html += '<div style="flex:1;height:3px;background:var(--s3);border-radius:2px">';
+        html += '<div style="height:100%;width:' + Math.min(100, budgetPct).toFixed(0) + '%;background:' + budgetCol + ';border-radius:2px"></div></div>';
+        html += '<div style="font-size:8px;color:' + budgetCol + ';white-space:nowrap">' + budgetPct.toFixed(0) + '% de ' + fmtK(budgetLim) + '</div>';
+        html += '</div>';
+      }
       });
       html += '</div>';
       if (cats.length > 7) html += '<div style="font-size:9px;color:var(--dim);text-align:center;margin-top:4px">+' + (cats.length-7) + ' categorias mas</div>';
@@ -6786,7 +6884,7 @@ function generarAnalisisMes(ci) {
 
   // Public API
   return {
-    nav: nav, openFab: openFab, closeMbd: closeMbd, closeM: closeM, analizarTC: analizarTC, modalAjusteSaldo: modalAjusteSaldo, confirmarAjusteSaldo: confirmarAjusteSaldo, modalAddMeta: modalAddMeta, saveMeta: saveMeta, editMeta: editMeta, addPresupuesto: addPresupuesto, exportarBackup: exportarBackup, importarBackup: importarBackup, sincronizarCedears: sincronizarCedears, configurarPIN: configurarPIN, cambiarPIN: cambiarPIN, borrarPIN: borrarPIN, bloquearAhora: bloquearAhora, reprogramarNotifs: reprogramarNotifs, activarHuella: activarHuella, detalleCategoria: detalleCategoria, borrarHuella: borrarHuella, toggleAnalisis: toggleAnalisis, setTema: setTema, irMes: irMes, moveAccount: moveAccount, delCatTC: delCatTC, modalAddCatTC: modalAddCatTC, modalEditCatTC: modalEditCatTC, saveEditCatTC: saveEditCatTC, saveNewCatTC: saveNewCatTC, exportarPDF: exportarPDF, fabIngreso: fabIngreso, fabGasto: fabGasto, fabTransferencia: fabTransferencia, fabGastoTC: fabGastoTC, onDescChange: onDescChange, toggleUVAFields: toggleUVAFields, calcCuotaUVAPreview: calcCuotaUVAPreview, calcAdelantoUVA: calcAdelantoUVA, toggleIntell: toggleIntell, toggleCuotas: toggleCuotas, modalReabrirTC: modalReabrirTC, confirmarReabrirTC: confirmarReabrirTC, calcTC: calcTC, calcTCPreview: calcTCPreview, modalEditCuotaTC: modalEditCuotaTC, saveEditCuotaTC: saveEditCuotaTC, previewEditTC: previewEditTC,
+    nav: nav, openFab: openFab, closeMbd: closeMbd, closeM: closeM, analizarTC: analizarTC, modalAjusteSaldo: modalAjusteSaldo, confirmarAjusteSaldo: confirmarAjusteSaldo, modalAddMeta: modalAddMeta, saveMeta: saveMeta, editMeta: editMeta, addPresupuesto: addPresupuesto, exportarBackup: exportarBackup, importarBackup: importarBackup, sincronizarCedears: sincronizarCedears, configurarPIN: configurarPIN, cambiarPIN: cambiarPIN, borrarPIN: borrarPIN, bloquearAhora: bloquearAhora, reprogramarNotifs: reprogramarNotifs, activarHuella: activarHuella, detalleCategoria: detalleCategoria, setPresupModal: setPresupModal, setPresupModal: setPresupModal, borrarHuella: borrarHuella, toggleAnalisis: toggleAnalisis, setTema: setTema, irMes: irMes, moveAccount: moveAccount, delCatTC: delCatTC, modalAddCatTC: modalAddCatTC, modalEditCatTC: modalEditCatTC, saveEditCatTC: saveEditCatTC, saveNewCatTC: saveNewCatTC, exportarPDF: exportarPDF, fabIngreso: fabIngreso, fabGasto: fabGasto, fabTransferencia: fabTransferencia, fabGastoTC: fabGastoTC, onDescChange: onDescChange, toggleUVAFields: toggleUVAFields, calcCuotaUVAPreview: calcCuotaUVAPreview, calcAdelantoUVA: calcAdelantoUVA, toggleIntell: toggleIntell, toggleCuotas: toggleCuotas, modalReabrirTC: modalReabrirTC, confirmarReabrirTC: confirmarReabrirTC, calcTC: calcTC, calcTCPreview: calcTCPreview, modalEditCuotaTC: modalEditCuotaTC, saveEditCuotaTC: saveEditCuotaTC, previewEditTC: previewEditTC,
     del: del, render: render, toggleTheme: toggleTheme, exportCSV: exportCSV,
     inicioNav: inicioNav, agNav: agNav, tcNav: tcNav, toggleProy5: toggleProy5,
     setMovFiltro: setMovFiltro, setMovCuenta: setMovCuenta, setMovBusq: setMovBusq,
