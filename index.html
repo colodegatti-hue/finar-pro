@@ -2713,32 +2713,7 @@ var APP = (function() {
     html += "</div>";
     html += "</div>";
 
-    // Seccion presupuesto
-    var presupExist = S.presupuestos ? S.presupuestos.filter(function(p){ return p.cat === catName; }) : [];
-    html += "<div style=\"margin-top:14px;padding-top:12px;border-top:1px solid var(--s3)\">";
-    html += "<div style=\"font-size:11px;font-weight:700;color:var(--dim);margin-bottom:8px\">PRESUPUESTO MENSUAL</div>";
-    if (presupExist.length > 0) {
-      var pLim = presupExist[0].limite;
-      var pPct = Math.min(120, totalCat / pLim * 100);
-      var pCol = pPct >= 100 ? "var(--red)" : pPct >= 80 ? "var(--yellow)" : "var(--green)";
-      html += "<div style=\"display:flex;justify-content:space-between;margin-bottom:6px\">";
-      html += "<span style=\"font-size:12px;color:" + pCol + ";font-weight:700\">" + fmt(totalCat) + " / " + fmt(pLim) + "</span>";
-      html += "<span style=\"font-size:12px;color:" + pCol + ";font-weight:700\">" + pPct.toFixed(0) + "%</span>";
-      html += "</div>";
-      html += "<div style=\"background:var(--s3);border-radius:20px;height:8px;overflow:hidden;margin-bottom:8px\">";
-      html += "<div style=\"background:" + pCol + ";height:100%;width:" + Math.min(100, pPct).toFixed(0) + "%;border-radius:20px;transition:width .4s\"></div>";
-      html += "</div>";
-      if (pPct >= 100) html += "<div style=\"font-size:10px;color:var(--red);margin-bottom:6px\">⚠ Superaste el limite por " + fmt(totalCat - pLim) + "</div>";
-      else if (pPct >= 80) html += "<div style=\"font-size:10px;color:var(--yellow);margin-bottom:6px\">⚠ Cerca del limite - te queda " + fmt(pLim - totalCat) + "</div>";
-      else html += "<div style=\"font-size:10px;color:var(--green);margin-bottom:6px\">✓ Dentro del presupuesto - te queda " + fmt(pLim - totalCat) + "</div>";
-    }
-    html += "<div style=\"display:flex;gap:6px;align-items:center\">";
-    html += "<input type=\"number\" id=\"modal_presup_lim\" class=\"inp\" placeholder=\"Limite mensual $\" value=\"" + (presupExist.length > 0 ? presupExist[0].limite : "") + "\" style=\"flex:1;font-size:12px\"/>";
-    html += "<button class=\"btn btn-p btn-sm\" onclick=\"try{APP.setPresupModal(\x27" + catName.replace(/'/g, "") + "\x27)}catch(e){console.log(e)}\">" + (presupExist.length > 0 ? "Cambiar" : "Definir") + "</button>";
-    html += "</div>";
-    html += "</div>";
-
-    html += "<button class=\"btn btn-s btn-w\" data-action=\"closeModal\" style=\"margin-top:12px\">Cerrar</button>";
+html += "<button class=\"btn btn-s btn-w\" data-action=\"closeModal\" style=\"margin-top:12px\">Cerrar</button>";
     openM(html);
   }
 
