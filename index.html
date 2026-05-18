@@ -6110,6 +6110,7 @@ function generarAnalisisMes(ci) {
 
     html += '<div class="card"><div class="sec">Datos</div>';
     html += '<button class="btn btn-s btn-w" data-action="exportCSV" style="margin-bottom:8px">Exportar movimientos CSV</button>';
+    html += '<button class="btn btn-s btn-sm btn-w" style="margin-bottom:8px" data-action="cerrarSesion">Cerrar sesion</button>';
     html += '<button class="btn btn-d btn-sm btn-w" data-action="resetApp">Reiniciar app (borrar todo)</button>';
     html += '</div>';
 
@@ -7000,6 +7001,7 @@ document.addEventListener('click', function(e) {
   if (action === 'bloquearAhora') { APP.bloquearAhora(); return; }
   if (action === 'editMeta') { APP.editMeta(btn.getAttribute('data-id')); return; }
   if (action === 'saveMeta') { APP.saveMeta(btn.getAttribute('data-id')); return; }
+  if (action === 'cerrarSesion') { cerrarSesion(); return; }
   if (action === 'addPresupuesto') { APP.addPresupuesto(); return; }
   if (action === 'confirmarTransferencia') { APP.confirmarTransferencia(); return; }
   if (action === 'buscarInflIA') { APP.buscarInflIA(); return; }
