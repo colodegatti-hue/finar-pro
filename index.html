@@ -838,6 +838,8 @@ function defState() {
     cierresMes: [],
     metas: [],
     presupuestos: [],
+    recurrentes: [],
+    recProcesados: {},
     catsTC: ['Supermercado','Restaurantes','Ropa','Electronica','Salud','Educacion','Viajes','Combustible','Entretenimiento','Servicios','Compras','Otros'],
     catsGasto: ['Supermercado','Restaurantes','Combustible','Servicios','Salud','Ropa','Educacion','Entretenimiento','Auto','Transferencia','Prestamo','Otros'],
     catsIngreso: ['Sueldo','Alquiler cobrado','Freelance','Inversiones','Otros ingresos'],
@@ -869,6 +871,8 @@ var S = (function() {
       if (!p.config.edad) p.config.edad = 33;
       if (p.config.usaAuto === undefined) p.config.usaAuto = false;
       if (!p.presupuestos) p.presupuestos = [];
+  if (!p.recurrentes) p.recurrentes = [];
+  if (!p.recProcesados) p.recProcesados = {};
       // Migration: add fechaInicio to existing loans
       if (p.prestamos) p.prestamos.forEach(function(pr) {
         if (!pr.fechaInicio && pr.cuotaN && pr.cuotaN > 1) {
@@ -5279,9 +5283,10 @@ function generarAnalisisMes(ci) {
         '<button class="tab ' + (masTab === 'score' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'score\')}catch(e){console.log(e)}">Score</button>' +
         '<button class="tab ' + (masTab === 'metas' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'metas\')}catch(e){console.log(e)}">Metas</button>' +
         '<button class="tab ' + (masTab === 'presupuesto' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'presupuesto\')}catch(e){console.log(e)}">Presup.</button>' +
+        '<button class="tab ' + (masTab === 'recurrentes' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'recurrentes\')}catch(e){console.log(e)}">Recur.</button>' +
         '<button class="tab ' + (masTab === 'config' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'config\')}catch(e){console.log(e)}">Config</button>' +
       '</div>' +
-      (masTab === 'inversiones' ? renderInversiones() : masTab === 'proyeccion' ? renderProy5() : masTab === 'score' ? renderScore() : masTab === 'metas' ? renderMetas() : masTab === 'presupuesto' ? renderPresupuesto() : renderConfig()) +
+      (masTab === 'inversiones' ? renderInversiones() : masTab === 'proyeccion' ? renderProy5() : masTab === 'recurrentes' ? renderRecurrentes() : masTab === 'score' ? renderScore() : masTab === 'metas' ? renderMetas() : masTab === 'presupuesto' ? renderPresupuesto() : renderConfig()) +
     '</div>';
     return html;
   }
@@ -5908,6 +5913,128 @@ function generarAnalisisMes(ci) {
   }
 
   function editMeta(id) { modalAddMeta(id); }
+
+  
+  function renderRecurrentes() {
+    var html = '<div class="card"><div class="sec">Gastos recurrentes</div>';
+    html += '<div style="font-size:9px;color:var(--dim);margin-bottom:10px">Gastos que se repiten cada mes. Te avisa 3 dias antes y el dia del vencimiento.</div>';
+    if (!S.recurrentes || !S.recurrentes.length) {
+      html += '<div style="color:var(--dim);text-align:center;padding:12px;font-size:12px">No hay gastos recurrentes.</div>';
+    } else {
+      var mesKey = TY + "-" + (TM < 9 ? "0" : "") + (TM + 1);
+      S.recurrentes.forEach(function(r) {
+        var procKey = mesKey + "-" + r.id;
+        var proc = S.recProcesados[procKey];
+        var estado = proc ? proc.estado : "pendiente";
+        var estadoIcon = estado === "confirmado" ? "\u2705" : estado === "omitido" ? "\u23F3" : "\u{1F534}";
+        var estadoTxt = estado === "confirmado" ? "Pagado" : estado === "omitido" ? "Omitido" : "Pendiente";
+        var estadoCol = estado === "confirmado" ? "var(--green)" : estado === "omitido" ? "var(--yellow)" : "var(--red)";
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--s3)">';
+        html += '<div style="flex:1">';
+        html += '<div style="font-size:12px;font-weight:700;color:var(--text)">' + r.nombre + '</div>';
+        html += '<div style="font-size:10px;color:var(--dim)">' + r.cat + ' - Dia ' + r.dia + ' de cada mes</div>';
+        html += '</div>';
+        html += '<div style="text-align:right">';
+        html += '<div style="font-size:12px;font-weight:700;color:var(--text)">' + fmtK(r.monto) + '</div>';
+        html += '<div style="font-size:9px;color:' + estadoCol + '">' + estadoIcon + ' ' + estadoTxt + '</div>';
+        html += '</div>';
+        if (estado !== "confirmado") {
+          html += '<button class="btn btn-p btn-sm" style="padding:6px 10px;font-size:10px" onclick="try{APP.modalConfirmRec(\x27' + r.id + '\x27)}catch(e){console.log(e)}">Pagar</button>';
+        }
+        html += '<button class="del-btn" data-del="recurrente" data-id="' + r.id + '" style="font-size:9px">x</button>';
+        html += '</div>';
+      });
+    }
+    html += '<div style="display:flex;gap:8px;margin-top:10px">';
+    html += '<input class="inp" id="rec_nombre" placeholder="Nombre (ej: Alquiler)" style="flex:2"/>';
+    html += '<input class="inp" type="number" id="rec_monto" placeholder="Monto $" style="flex:1"/>';
+    html += '</div>';
+    html += '<div style="display:flex;gap:8px;margin-top:6px">';
+    var cats = getCatsGasto();
+    html += '<select class="inp" id="rec_cat" style="flex:2">' + cats.map(function(c){ return '<option>' + c + '</option>'; }).join('') + '</select>';
+    html += '<input class="inp" type="number" id="rec_dia" placeholder="Dia" min="1" max="28" style="flex:1"/>';
+    html += '<button class="btn btn-p btn-sm" style="flex:1" data-action="addRecurrente">+</button>';
+    html += '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  function addRecurrente() {
+    var nombre = document.getElementById("rec_nombre").value.trim();
+    var monto = +document.getElementById("rec_monto").value;
+    var cat = document.getElementById("rec_cat").value;
+    var dia = +document.getElementById("rec_dia").value;
+    if (!nombre || !monto || !dia) { showAlert("Completa nombre, monto y dia"); return; }
+    if (dia < 1 || dia > 28) { showAlert("El dia debe ser entre 1 y 28"); return; }
+    if (!S.recurrentes) S.recurrentes = [];
+    S.recurrentes.push({ id: uid(), nombre: nombre, monto: monto, cat: cat, dia: dia, activo: true });
+    save(); render(); toast("Recurrente agregado");
+  }
+
+  function modalConfirmRec(recId) {
+    var rec = S.recurrentes.filter(function(r){ return r.id === recId; })[0];
+    if (!rec) return;
+    var hoy = new Date();
+    var fechaDefault = TY + "-" + (TM + 1 < 10 ? "0" : "") + (TM + 1) + "-" + (rec.dia < 10 ? "0" : "") + rec.dia;
+    var html = '<div class="mh"></div>';
+    html += '<div class="mt">\u{1F4B3} ' + rec.nombre + '</div>';
+    html += '<div style="font-size:11px;color:var(--dim);margin-bottom:12px">' + rec.cat + ' - Vencimiento dia ' + rec.dia + '</div>';
+    html += '<div style="margin-bottom:10px"><label style="font-size:10px;color:var(--dim)">Monto</label>';
+    html += '<input class="inp" type="number" id="conf_rec_monto" value="' + rec.monto + '" style="font-size:14px;font-weight:700"/></div>';
+    html += '<div style="margin-bottom:10px"><label style="font-size:10px;color:var(--dim)">Fecha de pago</label>';
+    html += '<input class="inp" type="date" id="conf_rec_fecha" value="' + fechaDefault + '"/></div>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">';
+    html += '<button class="btn btn-p" onclick="try{APP.confirmarRecPago(\x27' + recId + '\x27)}catch(e){console.log(e)}">\u2705 Confirmar pago</button>';
+    html += '<button class="btn btn-s" onclick="try{APP.omitirRec(\x27' + recId + '\x27)}catch(e){console.log(e)}">\u23F3 Omitir (recordar manana)</button>';
+    html += '<button class="btn btn-s" data-action="closeModal">Cancelar</button>';
+    html += '</div>';
+    openM(html);
+  }
+
+  function confirmarRecPago(recId) {
+    var rec = S.recurrentes.filter(function(r){ return r.id === recId; })[0];
+    if (!rec) return;
+    var monto = +document.getElementById("conf_rec_monto").value;
+    var fecha = document.getElementById("conf_rec_fecha").value;
+    if (!monto || !fecha) { showAlert("Completa monto y fecha"); return; }
+    // Registrar como movimiento real
+    S.movimientos.push({
+      id: uid(), tipo: "gasto", monto: monto, cat: rec.cat,
+      desc: rec.nombre, fecha: fecha, cuenta: S.cuentas.length ? S.cuentas[0].nombre : "Efectivo"
+    });
+    // Marcar como procesado
+    var mesKey = fecha.substring(0, 7);
+    if (!S.recProcesados) S.recProcesados = {};
+    S.recProcesados[mesKey + "-" + recId] = { estado: "confirmado", monto: monto, fecha: fecha };
+    save(); closeM(); render(); toast("Pago de " + rec.nombre + " registrado");
+  }
+
+  function omitirRec(recId) {
+    var mesKey = TY + "-" + (TM + 1 < 10 ? "0" : "") + (TM + 1);
+    if (!S.recProcesados) S.recProcesados = {};
+    S.recProcesados[mesKey + "-" + recId] = { estado: "omitido", fechaOmitido: new Date().toISOString() };
+    save(); closeM(); render(); toast("Omitido - te recordaremos manana");
+  }
+
+  // Chequear recurrentes pendientes al abrir la app
+  function checkRecurrentesPendientes() {
+    if (!S.recurrentes || !S.recurrentes.length) return;
+    var hoy = new Date();
+    var diaHoy = hoy.getDate();
+    var mesKey = TY + "-" + (TM + 1 < 10 ? "0" : "") + (TM + 1);
+    var pendientes = S.recurrentes.filter(function(r) {
+      if (!r.activo) return false;
+      var procKey = mesKey + "-" + r.id;
+      var proc = S.recProcesados ? S.recProcesados[procKey] : null;
+      if (proc && proc.estado === "confirmado") return false;
+      // Mostrar si ya paso el dia de vencimiento o estamos en el dia
+      return diaHoy >= r.dia;
+    });
+    if (pendientes.length > 0) {
+      // Mostrar el primer pendiente
+      setTimeout(function() { modalConfirmRec(pendientes[0].id); }, 2000);
+    }
+  }
 
   function renderPresupuesto() {
     var html = '<div class="card"><div class="sec">Presupuesto por categoria</div>';
@@ -6917,7 +7044,7 @@ function generarAnalisisMes(ci) {
 
   // Public API
   return {
-    nav: nav, openFab: openFab, closeMbd: closeMbd, closeM: closeM, analizarTC: analizarTC, modalAjusteSaldo: modalAjusteSaldo, confirmarAjusteSaldo: confirmarAjusteSaldo, modalAddMeta: modalAddMeta, saveMeta: saveMeta, editMeta: editMeta, addPresupuesto: addPresupuesto, exportarBackup: exportarBackup, importarBackup: importarBackup, sincronizarCedears: sincronizarCedears, configurarPIN: configurarPIN, cambiarPIN: cambiarPIN, borrarPIN: borrarPIN, bloquearAhora: bloquearAhora, reprogramarNotifs: reprogramarNotifs, activarHuella: activarHuella, detalleCategoria: detalleCategoria, setPresupModal: setPresupModal, setPresupModal: setPresupModal, borrarHuella: borrarHuella, toggleAnalisis: toggleAnalisis, setTema: setTema, irMes: irMes, moveAccount: moveAccount, delCatTC: delCatTC, modalAddCatTC: modalAddCatTC, modalEditCatTC: modalEditCatTC, saveEditCatTC: saveEditCatTC, saveNewCatTC: saveNewCatTC, exportarPDF: exportarPDF, fabIngreso: fabIngreso, fabGasto: fabGasto, fabTransferencia: fabTransferencia, fabGastoTC: fabGastoTC, onDescChange: onDescChange, toggleUVAFields: toggleUVAFields, calcCuotaUVAPreview: calcCuotaUVAPreview, calcAdelantoUVA: calcAdelantoUVA, toggleIntell: toggleIntell, toggleCuotas: toggleCuotas, modalReabrirTC: modalReabrirTC, confirmarReabrirTC: confirmarReabrirTC, calcTC: calcTC, calcTCPreview: calcTCPreview, modalEditCuotaTC: modalEditCuotaTC, saveEditCuotaTC: saveEditCuotaTC, previewEditTC: previewEditTC,
+    nav: nav, openFab: openFab, closeMbd: closeMbd, closeM: closeM, analizarTC: analizarTC, modalAjusteSaldo: modalAjusteSaldo, confirmarAjusteSaldo: confirmarAjusteSaldo, modalAddMeta: modalAddMeta, saveMeta: saveMeta, editMeta: editMeta, addPresupuesto: addPresupuesto, exportarBackup: exportarBackup, importarBackup: importarBackup, sincronizarCedears: sincronizarCedears, configurarPIN: configurarPIN, cambiarPIN: cambiarPIN, borrarPIN: borrarPIN, bloquearAhora: bloquearAhora, reprogramarNotifs: reprogramarNotifs, activarHuella: activarHuella, detalleCategoria: detalleCategoria, setPresupModal: setPresupModal, addRecurrente: addRecurrente, modalConfirmRec: modalConfirmRec, confirmarRecPago: confirmarRecPago, omitirRec: omitirRec, setPresupModal: setPresupModal, borrarHuella: borrarHuella, toggleAnalisis: toggleAnalisis, setTema: setTema, irMes: irMes, moveAccount: moveAccount, delCatTC: delCatTC, modalAddCatTC: modalAddCatTC, modalEditCatTC: modalEditCatTC, saveEditCatTC: saveEditCatTC, saveNewCatTC: saveNewCatTC, exportarPDF: exportarPDF, fabIngreso: fabIngreso, fabGasto: fabGasto, fabTransferencia: fabTransferencia, fabGastoTC: fabGastoTC, onDescChange: onDescChange, toggleUVAFields: toggleUVAFields, calcCuotaUVAPreview: calcCuotaUVAPreview, calcAdelantoUVA: calcAdelantoUVA, toggleIntell: toggleIntell, toggleCuotas: toggleCuotas, modalReabrirTC: modalReabrirTC, confirmarReabrirTC: confirmarReabrirTC, calcTC: calcTC, calcTCPreview: calcTCPreview, modalEditCuotaTC: modalEditCuotaTC, saveEditCuotaTC: saveEditCuotaTC, previewEditTC: previewEditTC,
     del: del, render: render, toggleTheme: toggleTheme, exportCSV: exportCSV,
     inicioNav: inicioNav, agNav: agNav, tcNav: tcNav, toggleProy5: toggleProy5,
     setMovFiltro: setMovFiltro, setMovCuenta: setMovCuenta, setMovBusq: setMovBusq,
@@ -7071,6 +7198,7 @@ document.addEventListener('click', function(e) {
   if (action === 'editMeta') { APP.editMeta(btn.getAttribute('data-id')); return; }
   if (action === 'saveMeta') { APP.saveMeta(btn.getAttribute('data-id')); return; }
   if (action === 'cerrarSesion') { cerrarSesion(); return; }
+  if (action === 'addRecurrente') { APP.addRecurrente(); return; }
   if (action === 'addPresupuesto') { APP.addPresupuesto(); return; }
   if (action === 'confirmarTransferencia') { APP.confirmarTransferencia(); return; }
   if (action === 'buscarInflIA') { APP.buscarInflIA(); return; }
@@ -7219,6 +7347,7 @@ function confirmDelYes() {
   else if (type==='tc') { S.gastosTC = S.gastosTC.filter(function(x){return x.id!==id;}); }
   else if (type==='ev') S.eventos = S.eventos.filter(function(x){return x.id!==id;});
     else if (type==='meta') S.metas = S.metas.filter(function(x){return x.id!==id;});
+    else if (type==='recurrente') S.recurrentes = S.recurrentes.filter(function(x){return x.id!==id;})
     else if (type==='presup') S.presupuestos = S.presupuestos.filter(function(x){return x.id!==id;});
   else if (type==='cuenta') S.cuentas = S.cuentas.filter(function(x){return x.id!==id;});
   else if (type==='infl') S.inflaciones = S.inflaciones.filter(function(x){return x.id!==id;});
