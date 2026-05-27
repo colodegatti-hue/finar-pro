@@ -873,6 +873,7 @@ var S = (function() {
       if (!p.presupuestos) p.presupuestos = [];
   if (!p.recurrentes) p.recurrentes = [];
   if (!p.recProcesados) p.recProcesados = {};
+  if (p.prestamos) p.prestamos.forEach(function(pr){ if (!pr.pagos) pr.pagos = []; });
       // Migration: add fechaInicio to existing loans
       if (p.prestamos) p.prestamos.forEach(function(pr) {
         if (!pr.fechaInicio && pr.cuotaN && pr.cuotaN > 1) {
@@ -1881,6 +1882,8 @@ function entrarApp() {
       throw new Error('APP no definido');
     }
     APP.render();
+    setTimeout(function(){ try{APP.checkRecurrentesPendientes();}catch(e2){} }, 3000);
+    setTimeout(function(){ try{APP.programarNotificacionesRec();}catch(e3){} }, 5000);
   } catch(e) {
     console.log('entrarApp render error:', e.message, e.stack);
     // Mostrar error visible en pantalla
@@ -3547,7 +3550,7 @@ function generarAnalisisMes(ci) {
         '<button class="btn btn-s btn-sm btn-w" style="margin-top:6px" data-action="modalAjusteSaldo" data-id="' + a.id + '">Ajustar saldo</button>' +
         '<div style="display:flex;gap:6px;margin-top:8px">' +
           '<button class="btn btn-s btn-sm" style="flex:1" onclick="try{APP.modalEditCuenta(\'' + a.id + '\')}catch(e){console.log(e)}">? Editar</button>' +
-          '<button class="del-btn" data-del="cuenta" data-id="' + a.id + '">\uD83D\uDDD1</button>' +
+          '<button class="del-btn" onclick="try{delItem(\'cuenta\',\'' + a.id + '\');}catch(e){}" style="padding:8px 12px">\uD83D\uDDD1</button>' +
         '</div>' +
       '</div>';
     });
@@ -3813,7 +3816,7 @@ function generarAnalisisMes(ci) {
             '<div class="item-actions">' +
               '<span style="font-family:\'JetBrains Mono\';font-size:11px;font-weight:700;color:' + (m.tipo === 'ingreso' ? 'var(--green)' : 'var(--red)') + '">' + (m.tipo === 'ingreso' ? '+' : '-') + fmt(m.monto) + '</span>' +
               '<button class="edit-btn" data-action="editMov" data-id="' + m.id + '">?</button>' +
-              '<button class="del-btn" data-del="mov" data-id="' + m.id + '">x</button>' +
+              '<button class="del-btn" onclick="try{delItem(\'mov\',\'' + m.id + '\');}catch(e){}" style="padding:8px 12px">x</button>' +
             '</div>' +
           '</div>';
         });
@@ -4955,6 +4958,28 @@ function generarAnalisisMes(ci) {
           '<button class="del-btn" data-del="prest" data-id="' + p.id + '">\uD83D\uDDD1</button>' +
         '</div>' +
       '</div>';
+    // Historial de pagos (desplegable)
+    if (p.pagos && p.pagos.length > 0) {
+      var histId = 'hist_' + p.id;
+      html += '<div style="margin-top:12px;border-top:1px solid var(--s3);padding-top:10px">';
+      html += '<div onclick="var el=document.getElementById(\x27' + histId + '\x27);if(el){el.style.display=el.style.display===\x27none\x27?\x27block\x27:\x27none\x27;this.querySelector(\x27.hist-arrow\x27).textContent=el.style.display===\x27none\x27?\x27\u25B6\x27:\x27\u25BC\x27;}" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:6px 0">';
+      html += '<div style="font-size:11px;font-weight:700;color:var(--text)">\u{1F4CB} Historial de pagos (' + p.pagos.length + ')</div>';
+      html += '<span class="hist-arrow" style="font-size:10px;color:var(--dim)">\u25B6</span>';
+      html += '</div>';
+      html += '<div id="' + histId + '" style="display:none;max-height:200px;overflow-y:auto">';
+      var pagosOrdenados = p.pagos.slice().reverse();
+      pagosOrdenados.forEach(function(pg) {
+        var mesNom = MC[pg.mes] + ' ' + pg.anio;
+        var tipoLabel = pg.tipo === 'adelanto' ? ' (Adelanto)' : '';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--s2);font-size:10px">';
+        html += '<div><span style="color:var(--green);font-weight:700">Cuota ' + pg.cuotaN + '</span>';
+        html += '<span style="color:var(--dim);margin-left:6px">' + mesNom + tipoLabel + '</span></div>';
+        html += '<div style="font-family:monospace;color:var(--text)">' + fmt(pg.monto) + '</div>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    }
+
     });
 
     html += '<div style="display:flex;gap:7px">' +
@@ -5126,7 +5151,9 @@ function generarAnalisisMes(ci) {
       monto: p.cuota
     });
 
-    // 3. Avanzar la cuota y registrar ultimo pago
+    // 3. Avanzar la cuota y registrar en historial
+    if (!p.pagos) p.pagos = [];
+    p.pagos.push({cuotaN: p.cuotaN, mes: TM, anio: TY, monto: p.cuota, fecha: fecha, tipo: 'normal'});
     p.cuotaN = p.cuotaN + 1;
     p.ultimoPago = {anio: TY, mes: TM, fecha: fecha};
 
@@ -5941,7 +5968,7 @@ function generarAnalisisMes(ci) {
         if (estado !== "confirmado") {
           html += '<button class="btn btn-p btn-sm" style="padding:6px 10px;font-size:10px" onclick="try{APP.modalConfirmRec(\x27' + r.id + '\x27)}catch(e){console.log(e)}">Pagar</button>';
         }
-        html += '<button class="del-btn" data-del="recurrente" data-id="' + r.id + '" style="font-size:9px">x</button>';
+        html += '<button class="del-btn" onclick="try{delItem(\'recurrente\',\'' + r.id + '\');}catch(e){}" style="font-size:9px">x</button>';
         html += '</div>';
       });
     }
@@ -6007,6 +6034,7 @@ function generarAnalisisMes(ci) {
     if (!S.recProcesados) S.recProcesados = {};
     S.recProcesados[mesKey + "-" + recId] = { estado: "confirmado", monto: monto, fecha: fecha };
     save(); closeM(); render(); toast("Pago de " + rec.nombre + " registrado");
+    try { programarNotificacionesRec(); } catch(e) {}
   }
 
   function omitirRec(recId) {
@@ -6017,6 +6045,55 @@ function generarAnalisisMes(ci) {
   }
 
   // Chequear recurrentes pendientes al abrir la app
+  
+  // Notificaciones para gastos recurrentes
+  async function programarNotificacionesRec() {
+    if (!window.Capacitor || !Capacitor.isNativePlatform || !Capacitor.isNativePlatform()) return;
+    try {
+      var LocalNotif = Capacitor.Plugins.LocalNotifications;
+      if (!LocalNotif) return;
+      // Pedir permiso
+      var perm = await LocalNotif.requestPermissions();
+      if (perm.display !== "granted") return;
+      // Cancelar notificaciones previas de recurrentes (ids 10000-10999)
+      try {
+        var pendientes = await LocalNotif.getPending();
+        var recIds = pendientes.notifications.filter(function(n){ return n.id >= 10000 && n.id <= 10999; }).map(function(n){ return {id: n.id}; });
+        if (recIds.length) await LocalNotif.cancel({notifications: recIds});
+      } catch(e) {}
+      // Programar notificaciones para cada recurrente
+      if (!S.recurrentes || !S.recurrentes.length) return;
+      var notifs = [];
+      var idBase = 10000;
+      var hoy = new Date();
+      var mesActual = hoy.getMonth();
+      var anioActual = hoy.getFullYear();
+      S.recurrentes.forEach(function(r, idx) {
+        if (!r.activo) return;
+        var mesKey = anioActual + "-" + (mesActual + 1 < 10 ? "0" : "") + (mesActual + 1);
+        var proc = S.recProcesados ? S.recProcesados[mesKey + "-" + r.id] : null;
+        if (proc && proc.estado === "confirmado") return;
+        // Notificacion 3 dias antes
+        var dia3antes = r.dia - 3;
+        if (dia3antes >= 1 && dia3antes > hoy.getDate()) {
+          var fecha3 = new Date(anioActual, mesActual, dia3antes, 9, 0, 0);
+          notifs.push({title: "Vencimiento proximo", body: r.nombre + " vence en 3 dias ($" + fmtK(r.monto) + ")", id: idBase + idx * 2, schedule: {at: fecha3}, sound: "default", smallIcon: "ic_stat_icon_config_sample", iconColor: "#00BFA5"});
+        }
+        // Notificacion el dia
+        if (r.dia > hoy.getDate()) {
+          var fechaDia = new Date(anioActual, mesActual, r.dia, 9, 0, 0);
+          notifs.push({title: "Vencimiento hoy", body: r.nombre + " vence hoy ($" + fmtK(r.monto) + ")", id: idBase + idx * 2 + 1, schedule: {at: fechaDia}, sound: "default", smallIcon: "ic_stat_icon_config_sample", iconColor: "#F04438"});
+        }
+      });
+      if (notifs.length) {
+        await LocalNotif.schedule({notifications: notifs});
+        console.log("Notificaciones recurrentes programadas:", notifs.length);
+      }
+    } catch(e) {
+      console.log("Error notificaciones:", e.message || e);
+    }
+  }
+
   function checkRecurrentesPendientes() {
     if (!S.recurrentes || !S.recurrentes.length) return;
     var hoy = new Date();
@@ -6055,7 +6132,7 @@ function generarAnalisisMes(ci) {
         html += '<div style="display:flex;align-items:center;gap:8px">';
         html += '<span style="font-size:11px;font-family:monospace;color:' + color + '">' + fmtK(gastadoCat) + '</span>';
         html += '<span style="font-size:9px;color:var(--dim)">/ ' + fmtK(p.limite) + '</span>';
-        html += '<button class="del-btn" data-del="presup" data-id="' + p.id + '" style="font-size:9px">x</button>';
+        html += '<button class="del-btn" onclick="try{delItem(\'presup\',\'' + p.id + '\');}catch(e){}" style="font-size:9px">x</button>';
         html += '</div></div>';
         html += '<div style="background:var(--s3);border-radius:20px;height:6px;overflow:hidden">';
         html += '<div style="background:' + color + ';height:100%;width:' + pct.toFixed(0) + '%;border-radius:20px;transition:width .4s"></div>';
@@ -7114,7 +7191,19 @@ function printPDFOverlay() {
 }
 
 function delItem(type, id) {
-  showConfirmDel(type, id);
+  var msg = {mov:"\u00bfEliminar este movimiento?", comp:"\u00bfEliminar compromiso?",
+    prest:"\u00bfEliminar pr\u00e9stamo?", cedear:"\u00bfEliminar CEDEAR?",
+    ev:"\u00bfEliminar evento?", cuenta:"\u00bfEliminar cuenta?",
+    meta:"\u00bfEliminar esta meta?", presup:"\u00bfEliminar presupuesto?",
+    recurrente:"\u00bfEliminar gasto recurrente?", tarjeta:"\u00bfEliminar tarjeta?",
+    cierre:"\u00bfEliminar cierre?"}[type] || "\u00bfEliminar?";
+  _pendingDel = {type: type, id: id};
+  var html = '<div class="mh"></div><div class="mt">' + msg + '</div>';
+  html += '<div style="display:flex;gap:8px;margin-top:16px">';
+  html += '<button class="btn btn-s" onclick="try{APP.closeM()}catch(e){}" style="flex:1">Cancelar</button>';
+  html += '<button class="btn btn-p" onclick="try{confirmDelYes();APP.closeM()}catch(e){}" style="flex:1;background:var(--red)">Eliminar</button>';
+  html += '</div>';
+  APP.openM(html);
 }
 
 // Event delegation for delete buttons - Android safe, no onclick quoting issues
