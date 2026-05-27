@@ -6045,6 +6045,29 @@ function generarAnalisisMes(ci) {
   }
 
   // Chequear recurrentes pendientes al abrir la app
+async function testNotificacion() {
+    if (!window.Capacitor || !Capacitor.isNativePlatform || !Capacitor.isNativePlatform()) {
+      toast("Notificaciones solo funcionan en la app nativa");
+      return;
+    }
+    try {
+      var LocalNotif = Capacitor.Plugins.LocalNotifications;
+      if (!LocalNotif) { toast("Plugin no disponible"); return; }
+      var perm = await LocalNotif.requestPermissions();
+      if (perm.display !== "granted") { toast("Permisos denegados"); return; }
+      var enDiezSeg = new Date(Date.now() + 10000);
+      await LocalNotif.schedule({notifications: [{
+        title: "FinAR Pro - Test",
+        body: "Si ves esto, las notificaciones funcionan!",
+        id: 99999,
+        schedule: {at: enDiezSeg},
+        sound: "default"
+      }]});
+      toast("Notificacion en 10 seg. Minimiza la app!");
+    } catch(e) {
+      toast("Error: " + (e.message || e));
+    }
+  }
   
   // Notificaciones para gastos recurrentes
   async function programarNotificacionesRec() {
@@ -6383,6 +6406,7 @@ function generarAnalisisMes(ci) {
 
     html += '<div class="card"><div class="sec">Datos</div>';
     html += '<button class="btn btn-s btn-w" data-action="exportCSV" style="margin-bottom:8px">Exportar movimientos CSV</button>';
+    html += '<button class="btn btn-s btn-sm btn-w" style="margin-bottom:8px" onclick="try{APP.testNotificacion()}catch(e){console.log(e)}">Probar notificacion</button>';
     html += '<button class="btn btn-s btn-sm btn-w" style="margin-bottom:8px" data-action="cerrarSesion">Cerrar sesion</button>';
     html += '<button class="btn btn-d btn-sm btn-w" data-action="resetApp">Reiniciar app (borrar todo)</button>';
     html += '</div>';
@@ -7121,7 +7145,7 @@ function generarAnalisisMes(ci) {
 
   // Public API
   return {
-    nav: nav, openFab: openFab, closeMbd: closeMbd, closeM: closeM, analizarTC: analizarTC, modalAjusteSaldo: modalAjusteSaldo, confirmarAjusteSaldo: confirmarAjusteSaldo, modalAddMeta: modalAddMeta, saveMeta: saveMeta, editMeta: editMeta, addPresupuesto: addPresupuesto, exportarBackup: exportarBackup, importarBackup: importarBackup, sincronizarCedears: sincronizarCedears, configurarPIN: configurarPIN, cambiarPIN: cambiarPIN, borrarPIN: borrarPIN, bloquearAhora: bloquearAhora, reprogramarNotifs: reprogramarNotifs, activarHuella: activarHuella, detalleCategoria: detalleCategoria, setPresupModal: setPresupModal, addRecurrente: addRecurrente, modalConfirmRec: modalConfirmRec, confirmarRecPago: confirmarRecPago, omitirRec: omitirRec, setPresupModal: setPresupModal, borrarHuella: borrarHuella, toggleAnalisis: toggleAnalisis, setTema: setTema, irMes: irMes, moveAccount: moveAccount, delCatTC: delCatTC, modalAddCatTC: modalAddCatTC, modalEditCatTC: modalEditCatTC, saveEditCatTC: saveEditCatTC, saveNewCatTC: saveNewCatTC, exportarPDF: exportarPDF, fabIngreso: fabIngreso, fabGasto: fabGasto, fabTransferencia: fabTransferencia, fabGastoTC: fabGastoTC, onDescChange: onDescChange, toggleUVAFields: toggleUVAFields, calcCuotaUVAPreview: calcCuotaUVAPreview, calcAdelantoUVA: calcAdelantoUVA, toggleIntell: toggleIntell, toggleCuotas: toggleCuotas, modalReabrirTC: modalReabrirTC, confirmarReabrirTC: confirmarReabrirTC, calcTC: calcTC, calcTCPreview: calcTCPreview, modalEditCuotaTC: modalEditCuotaTC, saveEditCuotaTC: saveEditCuotaTC, previewEditTC: previewEditTC,
+    nav: nav, openFab: openFab, closeMbd: closeMbd, closeM: closeM, analizarTC: analizarTC, modalAjusteSaldo: modalAjusteSaldo, confirmarAjusteSaldo: confirmarAjusteSaldo, modalAddMeta: modalAddMeta, saveMeta: saveMeta, editMeta: editMeta, addPresupuesto: addPresupuesto, exportarBackup: exportarBackup, importarBackup: importarBackup, sincronizarCedears: sincronizarCedears, configurarPIN: configurarPIN, cambiarPIN: cambiarPIN, borrarPIN: borrarPIN, bloquearAhora: bloquearAhora, reprogramarNotifs: reprogramarNotifs, activarHuella: activarHuella, detalleCategoria: detalleCategoria, setPresupModal: setPresupModal, addRecurrente: addRecurrente, modalConfirmRec: modalConfirmRec, confirmarRecPago: confirmarRecPago, omitirRec: omitirRec, testNotificacion: testNotificacion, programarNotificacionesRec: programarNotificacionesRec, checkRecurrentesPendientes: checkRecurrentesPendientes, setPresupModal: setPresupModal, borrarHuella: borrarHuella, toggleAnalisis: toggleAnalisis, setTema: setTema, irMes: irMes, moveAccount: moveAccount, delCatTC: delCatTC, modalAddCatTC: modalAddCatTC, modalEditCatTC: modalEditCatTC, saveEditCatTC: saveEditCatTC, saveNewCatTC: saveNewCatTC, exportarPDF: exportarPDF, fabIngreso: fabIngreso, fabGasto: fabGasto, fabTransferencia: fabTransferencia, fabGastoTC: fabGastoTC, onDescChange: onDescChange, toggleUVAFields: toggleUVAFields, calcCuotaUVAPreview: calcCuotaUVAPreview, calcAdelantoUVA: calcAdelantoUVA, toggleIntell: toggleIntell, toggleCuotas: toggleCuotas, modalReabrirTC: modalReabrirTC, confirmarReabrirTC: confirmarReabrirTC, calcTC: calcTC, calcTCPreview: calcTCPreview, modalEditCuotaTC: modalEditCuotaTC, saveEditCuotaTC: saveEditCuotaTC, previewEditTC: previewEditTC,
     del: del, render: render, toggleTheme: toggleTheme, exportCSV: exportCSV,
     inicioNav: inicioNav, agNav: agNav, tcNav: tcNav, toggleProy5: toggleProy5,
     setMovFiltro: setMovFiltro, setMovCuenta: setMovCuenta, setMovBusq: setMovBusq,
