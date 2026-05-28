@@ -44,7 +44,7 @@ input,select,button,textarea{font-family:'Plus Jakarta Sans',sans-serif}
 #APP{display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:430px;margin:0 auto;position:relative;overflow:hidden}
 #TOPBAR{flex-shrink:0;background:var(--s1);border-bottom:1px solid var(--border);padding:10px 14px 8px;display:flex;align-items:center;justify-content:space-between;z-index:30}
 #CONTENT{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 12px 86px;scroll-behavior:smooth}
-#NAVBAR{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--s1);border-top:1px solid var(--border);z-index:30;padding-bottom:env(safe-area-inset-bottom);display:grid;grid-template-columns:repeat(7,1fr)}
+#NAVBAR{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:linear-gradient(180deg,rgba(10,14,26,0.95),rgba(10,14,26,0.99));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid rgba(0,200,150,0.12);z-index:30;padding:4px 0 env(safe-area-inset-bottom);display:grid;grid-template-columns:repeat(7,1fr)}
 #MODAL_WRAP{position:fixed;inset:0;z-index:50;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.6)}
 #MODAL_WRAP.open{display:flex}
 #TOAST{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-60px);background:var(--green);color:#fff;padding:9px 20px;border-radius:99px;font-size:12px;font-weight:700;z-index:100;transition:transform .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;white-space:nowrap}
@@ -69,10 +69,11 @@ input,select,button,textarea{font-family:'Plus Jakarta Sans',sans-serif}
 /* ═══════════════════════════════════════════════════
    NAVBAR
 ═══════════════════════════════════════════════════ */
-.nb{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 2px;gap:3px;border:none;background:transparent;color:var(--dim);cursor:pointer;font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;position:relative;transition:color .2s;font-family:inherit}
-.nb svg{width:18px;height:18px;stroke-width:1.8;transition:filter .2s}
-.nb.on{color:var(--green)}
-.nb.on svg{filter:drop-shadow(0 0 5px var(--green))}
+.nb{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 2px 8px;gap:2px;border:none;background:transparent;color:var(--dim);font-size:8px;letter-spacing:.3px;text-transform:uppercase;cursor:pointer;position:relative;transition:color .25s ease,transform .15s ease;-webkit-tap-highlight-color:transparent}
+.nb svg{width:20px;height:20px;stroke-width:1.6;transition:all .25s ease}
+.nb.on{color:var(--green);font-weight:700}
+.nb.on svg{filter:drop-shadow(0 0 6px var(--green));transform:translateY(-1px)}
+.nb.on::after{content:"";position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:16px;height:3px;border-radius:2px;background:var(--green);box-shadow:0 0 8px var(--green)}
 .nb-dot{position:absolute;top:6px;right:calc(50% - 13px);width:6px;height:6px;border-radius:50%;background:var(--red);border:1px solid var(--s1);display:none}
 .nb-dot.show{display:block}
 
@@ -3102,7 +3103,68 @@ html += "<button class=\"btn btn-s btn-w\" data-action=\"closeModal\" style=\"ma
       '<div class="cmp-row"><div class="cmp-lbl">Gastos</div><div class="cmp-bar-wrap"><div class="cmp-bar-fill" style="width:' + clamp(gasP > 0 ? gas / gasP * 100 : 100, 0, 150) + '%;background:var(--red)"></div></div><div class="cmp-val" style="color:' + (dGas <= 0 ? 'var(--green)' : 'var(--red)') + '">' + (dGas >= 0 ? '+' : '') + dGas.toFixed(0) + '%</div></div>' +
     '</div>';
 
-    // Donut categorías  -  leyenda debajo para mejor visibilidad mobile
+
+    // Grafico evolucion 6 meses
+    (function() {
+      var evoData = [];
+      for (var em = 5; em >= 0; em--) {
+        var eM = viewM - em;
+        var eY = viewY;
+        while (eM < 0) { eM += 12; eY--; }
+        var eIng = ingMov(eY, eM);
+        var eGas = gasMov(eY, eM);
+        evoData.push({mes: MC[eM], ing: eIng, gas: eGas, ahorro: eIng - eGas});
+      }
+      var maxVal = Math.max.apply(null, evoData.map(function(d){return Math.max(d.ing, d.gas);})) || 1;
+      var chartW = 300, chartH = 140, padL = 45, padR = 10, padT = 15, padB = 25;
+      var plotW = chartW - padL - padR, plotH = chartH - padT - padB;
+      function xPos(i) { return padL + (i / 5) * plotW; }
+      function yPos(v) { return padT + plotH - (v / maxVal) * plotH; }
+
+      // Generar paths
+      var pathIng = '', pathGas = '', areaIng = '', areaGas = '';
+      var dotsIng = '', dotsGas = '';
+      evoData.forEach(function(d, i) {
+        var x = xPos(i), yI = yPos(d.ing), yG = yPos(d.gas);
+        pathIng += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + yI.toFixed(1);
+        pathGas += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + yG.toFixed(1);
+        dotsIng += '<circle cx="' + x.toFixed(1) + '" cy="' + yI.toFixed(1) + '" r="3" fill="var(--green)"/>';
+        dotsGas += '<circle cx="' + x.toFixed(1) + '" cy="' + yG.toFixed(1) + '" r="3" fill="var(--red)"/>';
+      });
+      // Area fill
+      areaIng = pathIng + 'L' + xPos(5).toFixed(1) + ',' + (padT + plotH) + 'L' + padL + ',' + (padT + plotH) + 'Z';
+      areaGas = pathGas + 'L' + xPos(5).toFixed(1) + ',' + (padT + plotH) + 'L' + padL + ',' + (padT + plotH) + 'Z';
+
+      html += '<div class="card"><div class="sec">Evolucion 6 meses</div>';
+      html += '<div style="display:flex;gap:12px;margin-bottom:8px;font-size:9px">';
+      html += '<div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;border-radius:50%;background:var(--green)"></div>Ingresos</div>';
+      html += '<div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;border-radius:50%;background:var(--red)"></div>Gastos</div>';
+      html += '</div>';
+      html += '<svg id="CH_EVO" viewBox="0 0 ' + chartW + ' ' + chartH + '" style="width:100%;height:auto">';
+      // Grid lines
+      for (var g = 0; g <= 4; g++) {
+        var gy = padT + (g / 4) * plotH;
+        var gVal = maxVal - (g / 4) * maxVal;
+        html += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (chartW - padR) + '" y2="' + gy.toFixed(1) + '" stroke="var(--s3)" stroke-width="0.5"/>';
+        html += '<text x="' + (padL - 4) + '" y="' + (gy + 3).toFixed(1) + '" fill="var(--dim)" font-size="8" text-anchor="end">' + fmtK(gVal) + '</text>';
+      }
+      // Area fills
+      html += '<path d="' + areaIng + '" fill="rgba(0,200,150,0.1)"/>';
+      html += '<path d="' + areaGas + '" fill="rgba(240,68,56,0.08)"/>';
+      // Lines
+      html += '<path d="' + pathIng + '" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+      html += '<path d="' + pathGas + '" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+      // Dots
+      html += dotsIng + dotsGas;
+      // X labels
+      evoData.forEach(function(d, i) {
+        html += '<text x="' + xPos(i).toFixed(1) + '" y="' + (chartH - 4) + '" fill="var(--dim)" font-size="9" text-anchor="middle">' + d.mes + '</text>';
+      });
+      html += '</svg>';
+      html += '</div>';
+    })();
+
+      // Donut categorías  -  leyenda debajo para mejor visibilidad mobile
     if (cats.length) {
       html += '<div class="card"><div class="sec">Gastos por categoria - ' + MC[viewM] + '</div>';
       // Canvas centered
