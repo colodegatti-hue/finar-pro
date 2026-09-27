@@ -7369,6 +7369,12 @@ async function testNotificacion() {
     html += '<button class="btn btn-p btn-sm btn-w" data-action="reprogramarNotifs">Reprogramar recordatorios</button>';
     html += '</div>';
 
+        // Gmail import card
+    html += '<div class="card"><div class="sec">&#x1F4E7; Importar desde Gmail</div>';
+    html += '<div style="font-size:9px;color:var(--dim);margin-bottom:10px">Conecta tu cuenta de Google para importar consumos desde emails de alerta de tu banco.</div>';
+    html += '<button class="btn btn-p btn-sm btn-w" data-action="importarGmail">&#x1F4E5; Conectar Gmail e importar</button>';
+    html += '</div>';
+
     html += '<div class="card"><div class="sec">Datos</div>';
     html += '<button class="btn btn-s btn-w" data-action="exportCSV" style="margin-bottom:8px">Exportar movimientos CSV</button>';
     html += '<button class="btn btn-s btn-sm btn-w" style="margin-bottom:8px" onclick="try{APP.testNotificacion()}catch(e){console.log(e)}">Probar notificacion</button>';
