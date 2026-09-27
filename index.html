@@ -44,7 +44,7 @@ input,select,button,textarea{font-family:'Plus Jakarta Sans',sans-serif}
 #APP{display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:430px;margin:0 auto;position:relative;overflow:hidden}
 #TOPBAR{flex-shrink:0;background:var(--s1);border-bottom:1px solid var(--border);padding:10px 14px 8px;display:flex;align-items:center;justify-content:space-between;z-index:30}
 #CONTENT{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 12px 86px;scroll-behavior:smooth}
-#NAVBAR{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:linear-gradient(180deg,rgba(10,14,26,0.95),rgba(10,14,26,0.99));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid rgba(0,200,150,0.12);z-index:30;padding:4px 0 env(safe-area-inset-bottom);display:grid;grid-template-columns:repeat(7,1fr)}
+#NAVBAR{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:linear-gradient(180deg,rgba(10,14,26,0.95),rgba(10,14,26,0.99));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid rgba(0,200,150,0.12);z-index:30;padding:4px 0 env(safe-area-inset-bottom);display:grid;grid-template-columns:repeat(6,1fr)}
 #MODAL_WRAP{position:fixed;inset:0;z-index:50;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.6)}
 #MODAL_WRAP.open{display:flex}
 #TOAST{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-60px);background:var(--green);color:#fff;padding:9px 20px;border-radius:99px;font-size:12px;font-weight:700;z-index:100;transition:transform .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;white-space:nowrap}
@@ -188,7 +188,7 @@ select.inp option{background:var(--s2)}
 /* ═══════════════════════════════════════════════════
    CALENDAR
 ═══════════════════════════════════════════════════ */
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
 .cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:7px;font-size:11px;font-weight:500;position:relative;cursor:pointer;transition:background .15s}
 .cal-day:hover{background:var(--s4)}
 .cal-day.today{background:var(--green-glow);color:var(--green);font-weight:800;box-shadow:inset 0 0 0 1px rgba(0,200,150,.4)}
@@ -457,10 +457,7 @@ canvas{display:block;width:100%!important;border-radius:6px}
     <button class="nb" id="nb-movimientos" data-action="navMovimientos">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Movim.
     </button>
-    <button class="nb" id="nb-agenda" data-action="navAgenda">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda
-      <span class="nb-dot" id="nb-agenda-dot"></span>
-    </button>
+    
     <button class="nb" id="nb-tarjetas" data-action="navTarjetas">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Tarjetas
     </button>
@@ -469,6 +466,8 @@ canvas{display:block;width:100%!important;border-radius:6px}
     </button>
     <button class="nb" id="nb-mas" data-action="navMas">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Más
+    </button>
+
     </button>
   </nav>
   <div id="MODAL_WRAP" data-action="closeMbd">
@@ -489,7 +488,7 @@ window.APP = {nav:function(){},openFab:function(){},closeMbd:function(){},closeM
   savePrest:function(){},modalPagarPrest:function(){},modalSimNuevo:function(){},
   modalSimUVA:function(){},configurarPIN:function(){},cambiarPIN:function(){},
   borrarPIN:function(){},bloquearAhora:function(){},reprogramarNotifs:function(){},activarHuella:function(){},borrarHuella:function(){},
-  toggleAnalisis:function(){},exportarBackup:function(){},importarBackup:function(){}};
+  toggleAnalisis:function(){},exportarBackup:function(){},importarBackup:function(){},importarDesdeGmail:function(){},cerrarModalGmail:function(){},confirmarImportGmail:function(){}};
 
 // ═══════════════════════════════════════════════════════════
 // CONSTANTS
@@ -629,6 +628,8 @@ async function handleGoogleCredential(response) {
 }
 
 async function handleOAuthCallback() {
+  // Verificar si es callback de Gmail OAuth
+  if (typeof checkGmailCallback === 'function') { var gRes = checkGmailCallback(); if (gRes && gRes.then) { var isGm = await gRes; if(isGm) return true; } else if(gRes) return true; }
   var search = window.location.search;
   var hash = window.location.hash;
   console.log('OAuth callback check - search:', search, 'hash:', hash ? hash.substring(0,50) : '');
@@ -708,6 +709,235 @@ async function handleOAuthCallback() {
   return false;
 }
 
+// ── Gmail OAuth + Importacion ────────────────────────────────────────────────
+var googleAccessToken = localStorage.getItem('finar_google_token') || '';
+
+function doGoogleGmailAuth() {
+  // PKCE code flow - el exchange se hace via Cloudflare Worker
+  var verif = generateRandom(32);
+  generateCodeChallenge(verif).then(function(chal) {
+    localStorage.setItem('gmail_verifier', verif);
+    localStorage.setItem('gmail_pending', '1');
+    var redir = window.location.origin + window.location.pathname;
+    var url = 'https://accounts.google.com/o/oauth2/v2/auth' +
+      '?client_id=' + encodeURIComponent(GOOGLE_CLIENT_ID) +
+      '&redirect_uri=' + encodeURIComponent(redir) +
+      '&response_type=code' +
+      '&scope=' + encodeURIComponent('https://www.googleapis.com/auth/gmail.readonly') +
+      '&code_challenge=' + chal +
+      '&code_challenge_method=S256' +
+      '&access_type=online' +
+      '&prompt=select_account';
+    window.location.href = url;
+  });
+}
+
+async function checkGmailCallback() {
+  // Detectar si venimos de un redirect de Gmail OAuth (code en URL + gmail_pending)
+  var search = window.location.search;
+  var pending = localStorage.getItem('gmail_pending');
+  if (!pending || !search || search.indexOf('code=') === -1) return false;
+  // Verificar que no sea el code de Supabase (el de Supabase no tiene gmail_pending o si tiene pkce_verifier)
+  var supaVerif = localStorage.getItem('pkce_verifier');
+  if (supaVerif) return false; // es el callback de Supabase, no Gmail
+  var qp = {};
+  search.replace('?','').split('&').forEach(function(p) {
+    var kv = p.split('='); qp[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1]||'');
+  });
+  var code = qp['code'];
+  var verif = localStorage.getItem('gmail_verifier');
+  if (!code || !verif) { localStorage.removeItem('gmail_pending'); return false; }
+  localStorage.removeItem('gmail_verifier');
+  localStorage.removeItem('gmail_pending');
+  try {
+    var redir = window.location.origin + window.location.pathname;
+    // Exchange via Cloudflare Worker (tiene el client_secret)
+    var resp = await fetch('https://odd-dream-46ba.colodegatti.workers.dev/gmail-token', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({code: code, verifier: verif, redirect_uri: redir})
+    });
+    var data = await resp.json();
+    history.replaceState(null, '', window.location.pathname);
+    if (data.access_token) {
+      googleAccessToken = data.access_token;
+      localStorage.setItem('finar_google_token', googleAccessToken);
+      toast('Gmail conectado! Importando...');
+      setTimeout(function(){ APP.importarDesdeGmail(); }, 600);
+      return true;
+    } else {
+      showAlert('Error Gmail: ' + (data.error_description || data.error || 'sin token'));
+      return false;
+    }
+  } catch(e) {
+    history.replaceState(null, '', window.location.pathname);
+    showAlert('Error al conectar Gmail: ' + e.message);
+    return false;
+  }
+}
+
+async function importarDesdeGmail() {
+  var token = googleAccessToken || localStorage.getItem('finar_google_token') || '';
+  if (!token) {
+    if (confirm('Para importar desde Gmail necesitas conectar tu cuenta de Google.\n\nSolo se pedira permiso de LECTURA de emails (no se puede enviar ni borrar).')) {
+      doGoogleGmailAuth();
+    }
+    return;
+  }
+  toast('Buscando emails de consumos...');
+  try {
+    var query = '(consumo OR debito OR "alerta de compra" OR "notificacion de compra") newer_than:30d';
+    var resp = await fetch(
+      'https://gmail.googleapis.com/gmail/v1/users/me/messages?q=' + encodeURIComponent(query) + '&maxResults=50',
+      {headers: {'Authorization': 'Bearer ' + token}}
+    );
+    if (resp.status === 401) {
+      localStorage.removeItem('finar_google_token');
+      googleAccessToken = '';
+      if (confirm('Sesion Gmail vencida. Volver a conectar?')) doGoogleGmailAuth();
+      return;
+    }
+    var data = await resp.json();
+    if (!data.messages || data.messages.length === 0) {
+      showAlert('No se encontraron emails de consumos en los ultimos 30 dias.');
+      return;
+    }
+    toast('Analizando ' + data.messages.length + ' emails...');
+    var txs = [];
+    var msgs = data.messages.slice(0,30);
+    for (var i=0; i<msgs.length; i++) {
+      try {
+        var mr = await fetch(
+          'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + msgs[i].id + '?format=full',
+          {headers: {'Authorization': 'Bearer ' + token}}
+        );
+        var parsed = parsearEmailConsumo(await mr.json());
+        if (parsed) txs.push(parsed);
+      } catch(ex) {}
+    }
+    if (txs.length === 0) {
+      showAlert('No se pudieron extraer consumos.\nLos emails de tu banco pueden tener un formato no reconocido.');
+      return;
+    }
+    mostrarPreviewGmail(txs);
+  } catch(e) {
+    showAlert('Error al acceder a Gmail: ' + e.message);
+  }
+}
+
+function extraerTextoEmail(msg) {
+  function dec(part) {
+    if (part.body && part.body.data) {
+      try { return atob(part.body.data.replace(/-/g,'+').replace(/_/g,'/')); } catch(e) { return ''; }
+    }
+    if (part.parts) { for (var i=0;i<part.parts.length;i++) { var t=dec(part.parts[i]); if(t) return t; } }
+    return '';
+  }
+  return dec(msg.payload || {});
+}
+
+function parsearEmailConsumo(msg) {
+  var hdrs = {};
+  if (msg.payload && msg.payload.headers) {
+    msg.payload.headers.forEach(function(h){ hdrs[h.name.toLowerCase()]=h.value; });
+  }
+  var from = (hdrs['from']||'').toLowerCase();
+  var subj = (hdrs['subject']||'').toLowerCase();
+  var dateStr = hdrs['date']||'';
+  var texto = extraerTextoEmail(msg).replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ');
+
+  var fecha = new Date(dateStr);
+  if (isNaN(fecha.getTime())) fecha = new Date();
+  var fISO = fecha.getFullYear()+'-'+String(fecha.getMonth()+1).padStart(2,'0')+'-'+String(fecha.getDate()).padStart(2,'0');
+
+  // Solo procesar emails que parecen alertas de consumo
+  var kw = ['consumo','compra','debito','pago','alerta','transaccion','notificacion'];
+  var src = ['banco','visa','mastercard','macro','galicia','santander','naranja','bbva','icbc','nacion','provincia'];
+  var esAlerta = kw.some(function(k){return subj.indexOf(k)!==-1;}) || src.some(function(s){return from.indexOf(s)!==-1;});
+  if (!esAlerta) return null;
+
+  // Detectar tarjeta
+  var tcId = null; var esTC = false;
+  var tl = texto.toLowerCase();
+  if (tl.indexOf('visa')!==-1||from.indexOf('visa')!==-1||from.indexOf('galicia')!==-1) {
+    tcId = S.tarjetas.length>0?S.tarjetas[0].id:null; esTC=true;
+  } else if (tl.indexOf('mastercard')!==-1||from.indexOf('mastercard')!==-1||from.indexOf('macro')!==-1||from.indexOf('naranja')!==-1) {
+    tcId = S.tarjetas.length>1?S.tarjetas[1].id:(S.tarjetas.length>0?S.tarjetas[0].id:null); esTC=true;
+  }
+
+  // Extraer monto
+  var monto = 0;
+  var pats = [
+    /\$\s*([0-9]{1,3}(?:\.[0-9]{3})+,[0-9]{2})/
+    ,/\$\s*([0-9]+,[0-9]{2})(?![0-9])/,
+    /ARS\s+([0-9]{1,3}(?:\.[0-9]{3})+(?:,[0-9]{2})?)/i,
+    /([0-9]{1,3}(?:\.[0-9]{3}){1,4},[0-9]{2})/
+  ];
+  for (var pi=0;pi<pats.length;pi++) {
+    var m=texto.match(pats[pi]);
+    if (m) { var n=parseFloat(m[1].replace(/\./g,'').replace(',','.')); if(n>=100&&n<=50000000){monto=n;break;} }
+  }
+  if (monto===0) return null;
+
+  // Descripcion
+  var desc = 'Consumo importado';
+  var dm = texto.match(/(?:en|comercio|establecimiento)[\s:]+([A-Z][^\n.]{2,35})/);
+  if (dm) desc = dm[1].trim().substring(0,40);
+  else if (hdrs['subject']) desc = hdrs['subject'].replace(/re:|fwd:|alerta|notif/gi,'').trim().substring(0,40);
+
+  return { gmailMsgId:msg.id, fecha:fISO, desc:desc, monto:monto, tipo:'gasto',
+    cat: esTC?'Tarjeta de credito':'Gastos',
+    cuenta: S.cuentas.length>0?S.cuentas[0].id:'',
+    tcId:tcId, esTC:esTC };
+}
+
+function mostrarPreviewGmail(txs) {
+  var yaIds = S.movimientos.filter(function(m){return m.gmailMsgId;}).map(function(m){return m.gmailMsgId;});
+  var nuevas = txs.filter(function(t){return yaIds.indexOf(t.gmailMsgId)===-1;});
+  if (nuevas.length===0) { toast('Todos los consumos ya fueron importados antes'); return; }
+  var html = '<div class="modal-overlay" id="modal_gmail" onclick="if(event.target===this)APP.cerrarModalGmail()">' +
+    '<div class="modal" style="max-width:360px;max-height:80vh;overflow-y:auto">' +
+    '<div class="modal-title">&#x1F4E5; Importar desde Gmail</div>' +
+    '<div style="font-size:10px;color:var(--dim);margin-bottom:10px">Selecciona los consumos a importar (' + nuevas.length + ' nuevos):</div>' +
+    '<div id="gmail_list">';
+  nuevas.forEach(function(t,i) {
+    html += '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">' +
+      '<input type="checkbox" id="gm_'+i+'" checked style="margin-top:3px;width:16px;height:16px">' +
+      '<label for="gm_'+i+'" style="flex:1;cursor:pointer">' +
+        '<div style="font-size:11px;font-weight:600">'+t.desc+'</div>' +
+        '<div style="font-size:9px;color:var(--dim)">'+t.fecha+(t.esTC?' · TC':'')+'</div>' +
+        '<div style="font-size:13px;font-weight:700;color:var(--red)">$'+t.monto.toLocaleString('es-AR')+'</div>' +
+      '</label></div>';
+  });
+  html += '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:14px">' +
+    '<button class="btn btn-s btn-sm" style="flex:1" onclick="APP.cerrarModalGmail()">Cancelar</button>' +
+    '<button class="btn btn-p btn-sm" style="flex:1" onclick="APP.confirmarImportGmail()">Importar seleccionados</button>' +
+    '</div></div></div>';
+  window._gmailPend = nuevas;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function cerrarModalGmail() {
+  var el = document.getElementById('modal_gmail'); if(el) el.remove();
+  window._gmailPend = null;
+}
+
+function confirmarImportGmail() {
+  var txs = window._gmailPend||[]; var count=0;
+  txs.forEach(function(t,i) {
+    var cb = document.getElementById('gm_'+i);
+    if (cb&&cb.checked) {
+      S.movimientos.push({id:uid(),gmailMsgId:t.gmailMsgId,fecha:t.fecha,desc:t.desc,
+        monto:t.monto,tipo:'gasto',cat:t.cat,cuenta:t.cuenta||(S.cuentas.length>0?S.cuentas[0].id:'')});
+      count++;
+    }
+  });
+  cerrarModalGmail();
+  if (count>0) { save(); renderMain(); toast(count+' consumo(s) importados OK'); }
+  else toast('No se importo ningun consumo');
+}
+
 // ── Guardar en Supabase (async) ───────────────────────────────────────────────
 async function saveCloud(data) {
   if (!authToken || !currentUser) return;
@@ -744,6 +974,7 @@ var TD = TODAY.getDate();
 // ═══════════════════════════════════════════════════════════
 function fmt(n, d) { d = (d===undefined||d===null) ? 2 : d; return '$' + Math.abs(n || 0).toLocaleString('es-AR', {minimumFractionDigits: d, maximumFractionDigits: d}); }
 function fmtK(n) { var a = Math.abs(n || 0); if (a >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M'; if (a >= 1000) return '$' + (n / 1000).toFixed(0) + 'K'; return fmt(n, 2); }
+function fmtFull(n) { return '$' + Math.abs(n || 0).toLocaleString('es-AR', {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
 function fmtU(n) { return 'U$D ' + (n || 0).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
 function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
@@ -1056,7 +1287,7 @@ function saldoTotal() { return S.cuentas.filter(function(a) { return a.moneda ==
 
 function catGastos(y, m) {
   var map = {};
-  movsDelMes(y, m).filter(function(mv) { return mv.tipo === 'gasto'; }).forEach(function(mv) { map[mv.cat] = (map[mv.cat] || 0) + mv.monto; });
+  movsDelMes(y, m).filter(function(mv) { return mv.tipo === 'gasto' && mv.cat !== 'Transferencia'; }).forEach(function(mv) { map[mv.cat] = (map[mv.cat] || 0) + mv.monto; });
   return Object.keys(map).map(function(n) { return {n: n, v: map[n]}; }).sort(function(a, b) { return b.v - a.v; });
 }
 
@@ -1535,7 +1766,7 @@ function getVence(tc, y, m) {
   return getNthWD(vy2, vm2, 3, 1);
 }
 function consumoTC(tcId) {
-  return S.gastosTC.filter(function(g){ return g.tcId === tcId && g.pendientes > 0; }).reduce(function(s,g){ return s+g.montoCuota; }, 0);
+  return S.gastosTC.filter(function(g){ return g.tcId === tcId && g.pendientes > 0; }).reduce(function(s,g){ return s + (g.montoCuota * g.pendientes); }, 0);
 }
 
 // Find which billing cycle (year+month) a purchase date falls into for a given card
@@ -1885,6 +2116,7 @@ function entrarApp() {
     APP.render();
     setTimeout(function(){ try{APP.checkRecurrentesPendientes();}catch(e2){} }, 3000);
     setTimeout(function(){ try{APP.programarNotificacionesRec();}catch(e3){} }, 5000);
+    setTimeout(function(){ try{APP.fetchInflacionAPI();}catch(e4){} }, 7000);
   } catch(e) {
     console.log('entrarApp render error:', e.message, e.stack);
     // Mostrar error visible en pantalla
@@ -2544,13 +2776,14 @@ console.log('APP IIFE START');
 var APP = (function() {
   var curPage = 'inicio';
   var viewY = TY, viewM = TM;
-  var movFiltro = 'todos', movBusq = '', movCuenta = 'todas';
+  var movFiltro = 'todos', movBusq = '', movCuenta = 'todas', movCat = '';
   var invTab = 'portfolio', agY = TY, agM = TM, tcY = TY, tcM = TM;
   var proj5Exp = {};
-  var masTab = 'inversiones';
+  var masTab = 'config';
 
   // ── NAV ──────────────────────────────────────────────
   function nav(page) {
+    if (page === 'config') { masTab = 'config'; page = 'mas'; }
     curPage = page;
     var btns = document.querySelectorAll('.nb');
     for (var i = 0; i < btns.length; i++) btns[i].classList.remove('on');
@@ -2560,6 +2793,85 @@ var APP = (function() {
     var showFab = ['inicio', 'movimientos', 'tarjetas', 'cuentas'].indexOf(page) >= 0;
     fab.style.display = showFab ? 'flex' : 'none';
     render();
+  }
+
+  function abrirInputIA() {
+    var html = '<div class="mh"></div><div class="mt">\uD83E\uDD16 Cargar con IA</div>';
+    html += '<div style="font-size:11px;color:var(--dim);margin-bottom:12px">Escrib\u00ED el gasto en lenguaje natural. Ej: "compr\u00E9 zapatillas 45 lucas 3 cuotas en Visa" o "pagu\u00E9 supermercado 28 mil"</div>';
+    html += '<div class="fg"><label>Describ\u00ED tu gasto o ingreso</label>';
+    html += '<textarea class="inp" id="ia_input" rows="3" placeholder="Ej: pagu\u00E9 Netflix 8500 pesos..." style="resize:none;font-family:inherit"></textarea></div>';
+    html += '<div id="ia_preview" style="margin-bottom:8px"></div>';
+    html += '<div style="display:flex;gap:8px">';
+    html += '<button class="btn btn-p" style="flex:1" onclick="APP.procesarInputIA()">\uD83E\uDD16 Interpretar</button>';
+    html += '<button class="btn btn-s" data-action="closeModal">Cancelar</button>';
+    html += '</div>';
+    openM(html);
+  }
+
+  function procesarInputIA() {
+    var texto = document.getElementById('ia_input').value.trim();
+    if (!texto) { showAlert('Escrib\u00ED algo primero'); return; }
+    var preview = document.getElementById('ia_preview');
+    preview.innerHTML = '<div style="color:var(--dim);font-size:11px">\u23F3 Interpretando...</div>';
+    var tarjetasInfo = S.tarjetas.map(function(t){return t.nombre + ' (id:' + t.id + ')'}).join(', ');
+    var cuentasInfo = S.cuentas.map(function(a){return a.nombre + ' (id:' + a.id + ')'}).join(', ');
+    var prompt = 'Interpret\u00E1 este texto en lenguaje argentino y devolvelo SOLO como JSON sin ning\u00FAn texto extra ni backticks.\n' +
+      'Texto: "' + texto + '"\n' +
+      'Tarjetas: ' + tarjetasInfo + '\n' +
+      'Cuentas: ' + cuentasInfo + '\n' +
+      'Categor\u00EDas: ' + CATS_GASTO.join(', ') + '\n' +
+      'Devuelve exactamente este JSON:\n' +
+      '{"tipo":"gasto|ingreso|tc","desc":"descripcion","monto":0,"cat":"categoria","cuotas":1,"tcId":"id_o_null","cuentaId":"id_o_null","fecha":"YYYY-MM-DD"}\n' +
+      'Reglas: si menciona tarjeta o cuotas -> tipo=tc. "Lucas" o "luca" = 1000. "Palo" = 1000000. Fecha hoy: ' + TODAY.toISOString().slice(0,10);
+    fetch('https://odd-dream-46ba.colodegatti.workers.dev', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({apiKey: 'sk-ant-api03-placeholder', model: 'claude-sonnet-4-5-20241022', max_tokens: 512, messages: [{role: 'user', content: prompt}]})
+    }).then(function(r){return r.json();}).then(function(data){
+      try {
+        var txt = data.content && data.content[0] ? data.content[0].text : '';
+        var clean = txt.replace(/```json|```/g,'').trim();
+        var parsed = JSON.parse(clean);
+        var colorTipo = parsed.tipo==='ingreso' ? 'var(--green)' : 'var(--red)';
+        var html2 = '<div style="background:var(--s3);border-radius:10px;padding:12px;margin-bottom:8px">';
+        html2 += '<div style="font-size:11px;font-weight:700;margin-bottom:6px">\u2705 Interpret\u00E9 esto:</div>';
+        html2 += '<div style="font-size:14px;font-weight:800">' + parsed.desc + '</div>';
+        html2 += '<div style="font-family:monospace;font-size:16px;font-weight:900;color:' + colorTipo + ';margin:4px 0">' + fmt(parsed.monto) + '</div>';
+        html2 += '<div style="font-size:10px;color:var(--dim)">Categor\u00EDa: ' + parsed.cat + '</div>';
+        if (parsed.tipo==='tc' && parsed.cuotas>1) html2 += '<div style="font-size:10px;color:var(--dim)">' + parsed.cuotas + ' cuotas de ' + fmt(parsed.monto/parsed.cuotas) + '</div>';
+        if (parsed.tcId) { var tc = S.tarjetas.find(function(t){return t.id===parsed.tcId;}); if(tc) html2 += '<div style="font-size:10px;color:var(--dim)">Tarjeta: ' + tc.nombre + '</div>'; }
+        html2 += '</div>';
+        var jsonEsc = parsed;
+        html2 += '<div style="display:flex;gap:8px">';
+        html2 += '<button class="btn btn-p" style="flex:1" onclick="APP.confirmarInputIA(\'' + btoa(unescape(encodeURIComponent(JSON.stringify(parsed)))) + '\')">\u2705 Confirmar</button>';
+        html2 += '<button class="btn btn-s" style="flex:1" onclick="document.getElementById(\'ia_preview\').innerHTML=\'\'">\u270F Corregir</button>';
+        html2 += '</div>';
+        preview.innerHTML = html2;
+      } catch(e) {
+        preview.innerHTML = '<div style="color:var(--red);font-size:11px">No pude interpretar ese texto. Intent\u00E1 ser m\u00E1s espec\u00EDfico.</div>';
+      }
+    }).catch(function(){ preview.innerHTML = '<div style="color:var(--red);font-size:11px">Error de conexi\u00F3n.</div>'; });
+  }
+
+  function confirmarInputIA(b64) {
+    try {
+      var p = JSON.parse(decodeURIComponent(escape(atob(b64))));
+      if (p.tipo === 'tc') {
+        var tc = S.tarjetas.find(function(t){return t.id===p.tcId;}) || S.tarjetas[0];
+        if (!tc) { showAlert('No hay tarjetas'); return; }
+        var cuotas = p.cuotas || 1;
+        var ciclo = getCicloCompra(tc, p.fecha);
+        S.gastosTC.push({id: uid(), tcId: tc.id, desc: p.desc, cat: p.cat, monto: p.monto, montoCuota: p.monto/cuotas, cuotasTotal: cuotas, pendientes: cuotas, fechaCompra: p.fecha, cicloMes: ciclo.m, cicloAnio: ciclo.y});
+      } else {
+        var cuenta = S.cuentas.find(function(a){return a.id===p.cuentaId;}) || S.cuentas[0];
+        if (!cuenta) { showAlert('No hay cuentas'); return; }
+        var monto = Math.abs(p.monto);
+        if (p.tipo==='gasto') cuenta.saldo -= monto; else cuenta.saldo += monto;
+        S.movimientos.push({id: uid(), fecha: p.fecha, tipo: p.tipo, cat: p.cat, desc: p.desc, monto: monto, cuentaId: cuenta.id});
+      }
+      save(); closeModal(); render();
+      showAlert('\u2705 ' + p.desc + ' cargado');
+    } catch(e) { showAlert('Error al cargar'); }
   }
 
   function openFab() {
@@ -2594,6 +2906,7 @@ var APP = (function() {
     html += '<div style="font-size:9px;color:var(--dim);margin-top:2px">Cuotas o 1 pago</div>';
     html += '</button>';
     html += '</div>';
+    html += '<button class="btn btn-p btn-w" onclick="APP.abrirInputIA()" style="margin-bottom:8px;background:linear-gradient(135deg,#1a4080,#2a78d6)">\uD83E\uDD16 Cargar con IA</button>';
     html += '<button class="btn btn-s btn-w" data-action="closeModal">Cancelar</button>';
     openM(html);
   }
@@ -2913,7 +3226,7 @@ html += "<button class=\"btn btn-s btn-w\" data-action=\"closeModal\" style=\"ma
     // Month nav
     html += '<div class="mnav">' +
       '<button class="mnav-btn" onclick="try{APP.inicioNav(-1)}catch(e){}"><-</button>' +
-      '<div><div class="mnav-title">' + MESES[viewM] + ' ' + viewY + '</div>' +
+      '<div onclick="try{APP.modalNavMes()}catch(e){}" style="cursor:pointer"><div class="mnav-title">' + MESES[viewM] + ' ' + viewY + ' \u25BC</div>' +
         '<div class="mnav-sub">' + (isCur ? '<span style="color:var(--green)">* Mes actual</span>' : '<span style="color:var(--dim2);cursor:pointer" onclick="try{APP.inicioNav(0)}catch(e){}">Ir a hoy -></span>') + '</div>' +
       '</div>' +
       '<button class="mnav-btn" onclick="try{APP.inicioNav(1)}catch(e){}">-></button>' +
@@ -2957,7 +3270,7 @@ html += "<button class=\"btn btn-s btn-w\" data-action=\"closeModal\" style=\"ma
     html += '<div style="text-align:right">';
     html += '<div class="sem ' + sem.cls + '">' + sem.em + '</div>';
     html += '<div style="font-size:9px;color:var(--dim);margin-top:5px">' + (S.config.ingresoNombre || 'Ingreso') + '</div>';
-    html += '<div style="font-size:11px;font-weight:700;color:var(--blue)">' + (isCur ? (dss > 0 ? 'en ' + dss + 'd' : dss === 0 ? 'HOY!' : 'Cobrado') : fmtK(ing)) + '</div>';
+    html += '<div style="font-size:11px;font-weight:700;color:var(--blue)">' + (isCur ? (dss > 0 ? 'en ' + dss + 'd' : dss === 0 ? 'HOY!' : 'Cobrado') : fmtFull(ing)) + '</div>';
     html += '</div></div>';
     // Libre estimado - BIG number
     html += '<div style="margin-bottom:12px">';
@@ -3239,7 +3552,7 @@ html += "<button class=\"btn btn-s btn-w\" data-action=\"closeModal\" style=\"ma
     }
 
     // Cerrar mes button (only current month, not already closed)
-    if (isCur && !getCierreMes(viewY, viewM)) {
+    if (false) {
       html += '<button class="btn btn-s btn-w" style="margin-top:4px" data-action="modalCerrarMes">'+
         'Cerrar mes ' + MC[viewM] + ' y registrar resultado'+
       '</button>';
@@ -3504,7 +3817,7 @@ function generarAnalisisMes(ci) {
     var mesesSinCierre = ultimos6.filter(function(m){
       return cierresMeses.indexOf(m.anio + '-' + m.mes) === -1;
     });
-    if (mesesSinCierre.length > 0) {
+    if (false && mesesSinCierre.length > 0) {
       html += '<div class="card"><div class="sec">Meses sin cerrar</div>';
       mesesSinCierre.forEach(function(m) {
         html += '<button onclick="try{APP.irMes(' + m.anio + ',' + m.mes + ')}catch(e){console.log(e)}" style="width:100%;background:var(--s3);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);text-align:left;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between">';
@@ -3530,9 +3843,9 @@ function generarAnalisisMes(ci) {
     html += '<div class="mt">Cerrar ' + MESES[viewM] + ' ' + viewY + '</div>';
     html += '<div style="background:var(--s3);border-radius:var(--rs);padding:14px;margin-bottom:14px">';
     html += '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:11px;color:var(--dim)">Ingresos del mes</span><span style="font-family:monospace;font-weight:700;color:var(--green)">' + fmtK(ing) + '</span></div>';
-    html += '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:11px;color:var(--dim)">Gastos registrados</span><span style="font-family:monospace;font-weight:700;color:var(--red)">' + fmtK(gas) + '</span></div>';
-    html += '<div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-size:11px;color:var(--dim)">Compromisos fijos</span><span style="font-family:monospace;font-weight:700;color:var(--red)">' + fmtK(comp) + '</span></div>';
-    html += '<div style="display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid var(--border)"><span style="font-size:13px;font-weight:700">Resultado neto</span><span style="font-family:monospace;font-size:18px;font-weight:900;color:' + color + '">' + (resultado>=0?'+':'') + fmtK(resultado) + '</span></div>';
+    html += '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:11px;color:var(--dim)">Gastos registrados</span><span style="font-family:monospace;font-weight:700;color:var(--red)">' + fmtFull(gas) + '</span></div>';
+    html += '<div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-size:11px;color:var(--dim)">Compromisos fijos</span><span style="font-family:monospace;font-weight:700;color:var(--red)">' + fmtFull(comp) + '</span></div>';
+    html += '<div style="display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid var(--border)"><span style="font-size:13px;font-weight:700">Resultado neto</span><span style="font-family:monospace;font-size:18px;font-weight:900;color:' + color + '">' + (resultado>=0?'+':'') + fmtFull(resultado) + '</span></div>';
     html += '</div>';
     html += '<div class="fg"><label>Saldo real en tus cuentas al cierre ($)</label>';
     html += '<input class="inp" type="number" id="cm_saldo" value="' + saldoTotal() + '" placeholder="' + saldoTotal() + '"/>';
@@ -3584,8 +3897,8 @@ function generarAnalisisMes(ci) {
       '<div class="page-title">Mis Cuentas</div>' +
       '<div class="page-sub">Saldo consolidado por cuenta</div>' +
       '<div class="g2">' +
-        '<div class="card c-b" style="margin-bottom:0"><div class="lbl">Total ARS</div><div class="big" style="font-size:22px;color:var(--blue);margin-top:4px">' + fmtK(arsT) + '</div></div>' +
-        '<div class="card c-g" style="margin-bottom:0"><div class="lbl">Total USD</div><div class="big" style="font-size:22px;color:var(--green);margin-top:4px">' + fmtU(usdT) + '</div><div style="font-size:9px;color:var(--dim);margin-top:3px">~ ' + fmtK(usdT * S.config.tipoCambio) + '</div></div>' +
+        '<div class="card c-b" style="margin-bottom:0"><div class="lbl">Total ARS</div><div class="big" style="font-size:22px;color:var(--blue);margin-top:4px">' + fmtFull(arsT) + '</div></div>' +
+        '<div class="card c-g" style="margin-bottom:0"><div class="lbl">Total USD</div><div class="big" style="font-size:22px;color:var(--green);margin-top:4px">' + fmtU(usdT) + '</div><div style="font-size:9px;color:var(--dim);margin-top:3px">~ ' + fmtFull(usdT * S.config.tipoCambio) + '</div></div>' +
       '</div>';
 
     // Cards por cuenta
@@ -3603,7 +3916,7 @@ function generarAnalisisMes(ci) {
         '</div>' +
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px;padding-right:36px">' +
           '<div><div style="font-size:13px;font-weight:700">' + a.icon + ' ' + a.nombre + '</div><div style="font-size:9px;color:var(--dim);margin-top:2px">' + a.tipo.toUpperCase() + ' . ' + a.moneda + '</div></div>' +
-          '<div style="text-align:right"><div style="font-size:18px;font-weight:800;font-family:\'JetBrains Mono\';color:' + (a.color || 'var(--blue)') + '">' + (a.moneda === 'USD' ? fmtU(a.saldo) : fmtK(a.saldo)) + '</div></div>' +
+          '<div style="text-align:right"><div style="font-size:18px;font-weight:800;font-family:\'JetBrains Mono\';color:' + (a.color || 'var(--blue)') + '">' + (a.moneda === 'USD' ? fmtU(a.saldo) : fmtFull(a.saldo)) + '</div></div>' +
         '</div>' +
         (mvs.length ? '<div class="g2" style="margin-bottom:8px">' +
           '<div style="background:var(--green-glow);border:1px solid rgba(0,200,150,.2);border-radius:8px;padding:7px;text-align:center"><div class="lbl">Entró</div><div style="font-size:12px;font-weight:700;color:var(--green)">' + fmtK(ingC) + '</div></div>' +
@@ -3757,13 +4070,13 @@ function generarAnalisisMes(ci) {
     if (!desde || !hacia) return;
     // Debit origin
     if (desde.moneda === 'USD' && hacia.moneda === 'ARS') {
-      desde.saldo = Math.max(0, desde.saldo - monto);
+      desde.saldo = desde.saldo - monto;
       hacia.saldo += monto * S.config.tipoCambio;
     } else if (desde.moneda === 'ARS' && hacia.moneda === 'USD') {
-      desde.saldo = Math.max(0, desde.saldo - monto);
+      desde.saldo = desde.saldo - monto;
       hacia.saldo += monto / S.config.tipoCambio;
     } else {
-      desde.saldo = Math.max(0, desde.saldo - monto);
+      desde.saldo = desde.saldo - monto;
       hacia.saldo += monto;
     }
     // Register two movements for history
@@ -3783,7 +4096,7 @@ function generarAnalisisMes(ci) {
       '<div class="fg"><label>Moneda</label><select class="inp" id="na_m"><option value="ARS">ARS (Pesos)</option><option value="USD">USD (Dólares)</option></select></div>' +
       '<div class="fg"><label>Saldo actual</label><input class="inp" type="number" id="na_s" value="0"/></div>' +
       '<div class="fg"><label>Ícono emoji</label><input class="inp" id="na_i" value="\uD83C\uDFE6" maxlength="2"/></div>' +
-      '<div class="fg"><label>Color</label><select class="inp" id="na_c">' + ACCT_COLORS.map(function(c, i) { return '<option value="' + c + '">Color ' + (i + 1) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="fg"><label>Color</label><div style="display:flex;gap:10px;padding:8px 0">' + ACCT_COLORS.map(function(c, i) { return '<div onclick="document.querySelectorAll(\'.cpick\').forEach(function(e){e.style.outline=\'none\'});this.style.outline=\'2px solid white\';document.getElementById(\'na_c\').value=\'' + c + '\'" class="cpick" style="width:36px;height:36px;border-radius:50%;background:' + c + ';cursor:pointer;border:2px solid var(--s3)' + (i===0?';outline:2px solid white':'') + '"></div>'; }).join('') + '</div><input type="hidden" id="na_c" value="' + ACCT_COLORS[0] + '"/></div>' +
       '<div style="display:flex;gap:8px;margin-top:4px"><button class="btn btn-p" style="flex:1" data-action="saveCuenta">Guardar</button><button class="btn btn-s" onclick="try{APP.closeM()}catch(e){console.log(e)}">Cancelar</button></div>');
   }
   function saveCuenta() {
@@ -3815,11 +4128,13 @@ function generarAnalisisMes(ci) {
   // PAGE: MOVIMIENTOS
   // ═══════════════════════════════════════════════════
   function pgMovimientos() {
-    var ing = ingMov(TY, TM), gas = gasMov(TY, TM);
-    var mvs = S.movimientos.slice().sort(function(a, b) { return b.fecha.localeCompare(a.fecha); });
+    var ing = ingMov(viewY, viewM), gas = gasMov(viewY, viewM);
+    var mesKey = viewY + '-' + (viewM+1 < 10 ? '0' : '') + (viewM+1);
+    var mvs = S.movimientos.filter(function(m) { return m.fecha.substring(0,7) === mesKey; }).slice().sort(function(a, b) { return b.fecha.localeCompare(a.fecha); });
     if (movFiltro === 'ingreso') mvs = mvs.filter(function(m) { return m.tipo === 'ingreso'; });
     if (movFiltro === 'gasto') mvs = mvs.filter(function(m) { return m.tipo === 'gasto'; });
     if (movCuenta !== 'todas') mvs = mvs.filter(function(m) { return m.cuentaId === movCuenta; });
+    if (movCat) mvs = mvs.filter(function(m) { return m.cat === movCat; });
     if (movBusq) {
       var q = movBusq.toLowerCase().trim();
       mvs = mvs.filter(function(m) {
@@ -3837,10 +4152,18 @@ function generarAnalisisMes(ci) {
     var dates = Object.keys(byDate).sort(function(a, b) { return b.localeCompare(a); });
 
     var html = '<div class="page">' +
+      '<div class="mnav">' +
+        '<button class="mnav-btn" onclick="try{APP.inicioNav(-1)}catch(e){}"><-</button>' +
+        '<div style="text-align:center">' +
+          '<div class="mnav-title">' + MESES[viewM] + ' ' + viewY + '</div>' +
+          '<div class="mnav-sub">' + (viewY===TY&&viewM===TM ? '<span style="color:var(--green)">Mes actual</span>' : '<span style="color:var(--dim2);cursor:pointer" onclick="try{APP.inicioNav(0)}catch(e){}">Ir a hoy</span>') + '</div>' +
+        '</div>' +
+        '<button class="mnav-btn" onclick="try{APP.inicioNav(1)}catch(e){}">-></button>' +
+      '</div>' +
       '<div class="page-title">Movimientos</div>' +
       '<div class="g2" style="margin-bottom:9px">' +
-        '<div class="mc" style="border-top:2px solid var(--green)"><div class="lbl">Ingresos mes</div><div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">' + fmtK(ing) + '</div></div>' +
-        '<div class="mc" style="border-top:2px solid var(--red)"><div class="lbl">Gastos mes</div><div style="font-size:13px;font-weight:700;color:var(--red);margin-top:3px">' + fmtK(gas) + '</div></div>' +
+        '<div class="mc" style="border-top:2px solid var(--green)"><div class="lbl">Ingresos mes</div><div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">' + fmtFull(ing) + '</div></div>' +
+        '<div class="mc" style="border-top:2px solid var(--red)"><div class="lbl">Gastos mes</div><div style="font-size:13px;font-weight:700;color:var(--red);margin-top:3px">' + fmtFull(gas) + '</div></div>' +
       '</div>' +
       '<div class="tabs">' +
         '<button class="tab ' + (movFiltro === 'todos' ? 'on' : '') + '" onclick="try{APP.setMovFiltro(\'todos\')}catch(e){console.log(e)}">Todos</button>' +
@@ -3851,7 +4174,14 @@ function generarAnalisisMes(ci) {
         '<button class="btn btn-sm ' + (movCuenta === 'todas' ? 'btn-p' : 'btn-s') + '" onclick="try{APP.setMovCuenta(\'todas\')}catch(e){console.log(e)}">Todas</button>' +
         S.cuentas.map(function(a) { return '<button class="btn btn-sm ' + (movCuenta === a.id ? 'btn-p' : 'btn-s') + '" onclick="try{APP.setMovCuenta(\'' + a.id + '\')}catch(e){console.log(e)}" style="white-space:nowrap">' + a.icon + ' ' + a.nombre.split(' ')[0] + '</button>'; }).join('') +
       '</div>' +
-      '<input class="inp" style="margin-bottom:9px" placeholder="\uD83D\uDD0D Buscar..." value="' + movBusq + '" oninput="APP.setMovBusq(this.value)"/>' +
+      '<div style="display:flex;gap:5px;margin-bottom:6px;overflow-x:auto;padding-bottom:2px">' +
+        '<button class="btn btn-sm ' + (movCat === '' ? 'btn-p' : 'btn-s') + '" onclick="try{APP.setMovCat(\'\')}catch(e){}">\uD83D\uDCCB Todas</button>' +
+        (function(){ var cats = []; S.movimientos.forEach(function(m){ if(m.cat && cats.indexOf(m.cat)===-1) cats.push(m.cat); }); cats.sort(); return cats.map(function(cat, i){ return '<button class="btn btn-sm ' + (movCat===cat?'btn-p':'btn-s') + '" onclick="APP.setMovCatIdx(' + i + ')" style="white-space:nowrap">' + cat + '</button>'; }).join(''); })() +
+      '</div>' +
+      '<div style="display:flex;gap:6px;margin-bottom:9px">' +
+      '<input class="inp" id="mov_busq_inp" style="flex:1;margin-bottom:0" placeholder="\uD83D\uDD0D Buscar..." value="' + movBusq + '"/>' +
+      '<button class="btn btn-s" style="white-space:nowrap;padding:0 14px" onclick="APP.setMovBusq(document.getElementById(\'mov_busq_inp\').value)">Buscar</button>' +
+      '</div>' +
       '<div class="card" style="padding:11px">';
 
     if (movBusq && mvs.length > 0) {
@@ -3892,6 +4222,14 @@ function generarAnalisisMes(ci) {
 
   function setMovFiltro(v) { movFiltro = v; render(); }
   function setMovCuenta(v) { movCuenta = v; render(); }
+  function setMovCat(v) { movCat = v || ''; render(); }
+  function setMovCatIdx(idx) {
+    var cats = [];
+    S.movimientos.forEach(function(m){ if(m.cat && cats.indexOf(m.cat)===-1) cats.push(m.cat); });
+    cats.sort();
+    movCat = cats[idx] || '';
+    render();
+  }
   function setMovBusq(v) { movBusq = v; render(); }
 
 
@@ -3926,7 +4264,7 @@ function generarAnalisisMes(ci) {
   function modalMov(editId, defaultTipo) {
     var m = editId ? S.movimientos.find(function(x) { return x.id === editId; }) : null;
     var defTipo = defaultTipo || (m ? m.tipo : 'gasto');
-    var gCats = m && m.tipo === 'ingreso' ? getCatsIngreso() : getCatsGasto();
+    var gCats = defTipo === 'ingreso' ? getCatsIngreso() : getCatsGasto();
     openM('<div class="mh"></div><div class="mt">' + (m ? '? Editar' : '+ Nuevo') + ' movimiento</div>' +
       '<div class="fg"><label>Fecha</label><input class="inp" type="date" id="mv_f" value="' + (m ? m.fecha : TODAY.toISOString().slice(0, 10)) + '"/></div>' +
       '<div class="fg"><label>Tipo</label><select class="inp" id="mv_t" onchange="APP.updMovCats()"><option value="gasto"' + (defTipo === 'gasto' ? ' selected' : '') + '>\uD83D\uDCE4 Gasto</option><option value="ingreso"' + (defTipo === 'ingreso' ? ' selected' : '') + '>\uD83D\uDCE5 Ingreso</option></select></div>' +
@@ -3964,14 +4302,14 @@ function generarAnalisisMes(ci) {
       // Apply new movement to new account
       if (cuenta) {
         if (t === 'ingreso') cuenta.saldo += m;
-        else cuenta.saldo = Math.max(0, cuenta.saldo - m);
+        else cuenta.saldo = cuenta.saldo - m;
       }
     } else {
       S.movimientos.push({id: uid(), fecha: f, tipo: t, cat: catVal, desc: d, formaPago: fp, cuentaId: ac, monto: m});
       // Apply to account balance
       if (cuenta) {
         if (t === 'ingreso') cuenta.saldo += m;
-        else cuenta.saldo = Math.max(0, cuenta.saldo - m);
+        else cuenta.saldo = cuenta.saldo - m;
       }
     }
     // Recalc cierre of affected month
@@ -4014,7 +4352,7 @@ function generarAnalisisMes(ci) {
     }
 
     html += '<div class="card" style="padding:11px">' +
-      '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">' +
+      '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:2px;margin-bottom:4px">' +
         DS.map(function(d) { return '<div style="text-align:center;font-size:8px;color:var(--dim);font-weight:600;padding:3px 0">' + d + '</div>'; }).join('') +
       '</div>' +
       '<div class="cal-grid">' + cells + '</div>' +
@@ -4167,17 +4505,11 @@ function generarAnalisisMes(ci) {
         '<button class="mnav-btn" data-action="tcNavNext">-></button>' +
       '</div>';
 
-    // AI Analysis button
-    html += '<div style="display:flex;justify-content:flex-end;margin-bottom:6px">';
-    html += '<button class="btn btn-p btn-sm" data-action="analizarTC" style="gap:5px">';
-    html += '\uD83E\uDDE0 Analizar con IA</button></div>';
-    html += '<div id="tc_ia_result"></div>';
-
     // Resumen consolidado - ARRIBA
     var totalLimite = S.tarjetas.reduce(function(s,t){return s+(t.limite||0);},0);
     // totalConsumido = saldo a pagar = sum of unpaid cuotas across all cards
     var totalConsumido = S.tarjetas.reduce(function(s,t){
-      return s + getCuotasMes(t.id,tcY,tcM).filter(function(g){return !g.pagada;}).reduce(function(s2,g){return s2+g.montoCuota;},0);
+      return s + S.gastosTC.filter(function(g){ return g.tcId === t.id && g.pendientes > 0; }).reduce(function(s2,g){ return s2 + (g.montoCuota * g.pendientes); }, 0);
     },0);
     var totalDisponible = Math.max(0, totalLimite - totalConsumido);
     var pctTotal = totalLimite > 0 ? clamp(totalConsumido/totalLimite*100,0,100) : 0;
@@ -4194,7 +4526,7 @@ function generarAnalisisMes(ci) {
     html += '<div style="background:var(--red-glow);border:1px solid rgba(240,68,56,.2);border-radius:var(--rs);padding:10px;text-align:center">';
     html += '<div class="lbl" style="margin-bottom:3px">Consumido</div>';
     html += '<div style="font-size:14px;font-weight:800;font-family:monospace;color:var(--red)">' + fmtK(totalConsumido) + '</div>';
-    html += '<div style="font-size:9px;color:var(--dim);margin-top:2px">' + pctTotal.toFixed(0) + '% del limite</div>';
+    html += '<div style="font-size:9px;color:var(--dim);margin-top:2px">deuda total</div>';
     html += '</div>';
     html += '<div style="background:var(--green-glow);border:1px solid rgba(0,200,150,.2);border-radius:var(--rs);padding:10px;text-align:center">';
     html += '<div class="lbl" style="margin-bottom:3px">Disponible</div>';
@@ -4221,6 +4553,72 @@ function generarAnalisisMes(ci) {
     html += '</div>';
     html += '</div>';
 
+    // === GRAFICO EVOLUCION TC v2 ===
+    (function() {
+      var mL = [], mSaldo = [], mConsumo = [];
+      for (var mi = 5; mi >= 0; mi--) {
+        var mX = tcM - mi, yX = tcY;
+        if (mX < 0) { mX += 12; yX--; }
+        mL.push(MESES[mX].substring(0,3));
+        var sal = S.tarjetas.reduce(function(s,t){ return s + getCuotasMes(t.id, yX, mX).reduce(function(s2,g){return s2+g.montoCuota;},0); }, 0);
+        var con = S.tarjetas.reduce(function(s,t){ return s + getCuotasMes(t.id, yX, mX).reduce(function(s2,g){return s2+g.montoCuota;},0); }, 0);
+        mSaldo.push(sal);
+        mConsumo.push(con);
+      }
+      var maxV = Math.max.apply(null, mSaldo.concat(mConsumo).concat([1]));
+      var sAct = mSaldo[5], sAnt = mSaldo[4];
+      var diff = sAnt > 0 ? ((sAct - sAnt) / sAnt * 100).toFixed(0) : 0;
+      var pctL = totalLimite > 0 ? (totalConsumido / totalLimite * 100).toFixed(0) : 0;
+      var cPct = pctL > 80 ? 'var(--red)' : pctL > 50 ? 'var(--yellow)' : 'var(--green)';
+      var cDiff = diff > 0 ? 'var(--red)' : 'var(--green)';
+      var dArr = diff > 0 ? '\u2191' : (diff < 0 ? '\u2193' : '=');
+      // SVG
+      var pL2=32, pR=8, pT=14, pB=22, SW=300, SH=130;
+      var plotW = SW-pL2-pR, plotH = SH-pT-pB;
+      var bw = Math.floor(plotW/6) - 6;
+      var svg = '<svg viewBox="0 0 ' + SW + ' ' + SH + '" style="width:100%;height:auto;display:block">';
+      for (var gi=0; gi<=3; gi++) {
+        var gy = pT + (gi/3)*plotH;
+        var gv = maxV * (1 - gi/3);
+        svg += '<line x1="' + pL2 + '" y1="' + gy.toFixed(1) + '" x2="' + (SW-pR) + '" y2="' + gy.toFixed(1) + '" stroke="var(--border)" stroke-width="0.5"/>';
+        svg += '<text x="' + (pL2-2) + '" y="' + (gy+3).toFixed(1) + '" text-anchor="end" font-size="7" fill="var(--dim)">' + fmtK(gv) + '</text>';
+      }
+      var lineP = '';
+      for (var bi=0; bi<6; bi++) {
+        var xC = pL2 + (bi/5)*plotW;
+        var xB = xC - bw/2;
+        var bH = maxV > 0 ? (mSaldo[bi]/maxV)*plotH : 0;
+        var bY = pT + plotH - bH;
+        var isA = bi === 5;
+        svg += '<rect x="' + xB.toFixed(1) + '" y="' + bY.toFixed(1) + '" width="' + bw + '" height="' + Math.max(bH,1).toFixed(1) + '" rx="2" fill="' + (isA ? 'var(--blue)' : 'rgba(42,120,214,0.45)') + '"/>';
+        if (isA && mSaldo[bi] > 0) svg += '<text x="' + xC.toFixed(1) + '" y="' + (bY-3).toFixed(1) + '" text-anchor="middle" font-size="7.5" font-weight="bold" fill="var(--blue)">' + fmtK(mSaldo[bi]) + '</text>';
+        var lY = pT + plotH - (maxV > 0 ? (mConsumo[bi]/maxV)*plotH : 0);
+        lineP += (bi===0?'M':'L') + xC.toFixed(1) + ',' + lY.toFixed(1) + ' ';
+        svg += '<text x="' + xC.toFixed(1) + '" y="' + (SH-5) + '" text-anchor="middle" font-size="8" font-weight="' + (isA?'bold':'normal') + '" fill="' + (isA?'var(--txt)':'var(--dim)') + '">' + mL[bi] + '</text>';
+      }
+      svg += '<path d="' + lineP + '" fill="none" stroke="var(--red)" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>';
+      for (var pi=0; pi<6; pi++) {
+        var px2 = pL2 + (pi/5)*plotW;
+        var py2 = pT + plotH - (maxV > 0 ? (mConsumo[pi]/maxV)*plotH : 0);
+        svg += '<circle cx="' + px2.toFixed(1) + '" cy="' + py2.toFixed(1) + '" r="3" fill="var(--red)" stroke="var(--s1)" stroke-width="1"/>';
+      }
+      svg += '</svg>';
+      html += '<div class="card" style="margin-bottom:14px;padding:14px">';
+      html += '<div style="font-size:10px;font-weight:700;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Evolucion TC — ultimos 6 meses</div>';
+      html += svg;
+      html += '<div style="display:flex;gap:8px;margin-top:10px">';
+      html += '<div style="flex:1;background:var(--s3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:var(--dim)">Saldo ciclo</div><div style="font-size:12px;font-weight:800;color:var(--red)">' + fmtK(sAct) + '</div></div>';
+      html += '<div style="flex:1;background:var(--s3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:var(--dim)">Vs mes ant.</div><div style="font-size:12px;font-weight:800;color:' + cDiff + '">' + dArr + ' ' + Math.abs(diff) + '%</div></div>';
+      html += '<div style="flex:1;background:var(--s3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:var(--dim)">% limite</div><div style="font-size:12px;font-weight:800;color:' + cPct + '">' + pctL + '%</div></div>';
+      html += '</div>';
+      html += '<div style="display:flex;gap:12px;margin-top:8px;justify-content:center">';
+      html += '<div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:8px;background:var(--blue);border-radius:2px;opacity:0.8"></div><span style="font-size:9px;color:var(--dim)">Saldo a pagar</span></div>';
+      html += '<div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:2px;background:var(--red)"></div><span style="font-size:9px;color:var(--dim)">Consumo del ciclo</span></div>';
+      html += '</div>';
+      html += '</div>';
+    })();
+    // === FIN GRAFICO TC v2 ===
+
     S.tarjetas.forEach(function(tc, i) {
       var cierre = getCierre(tc, tcY, tcM), vence = getVence(tc, tcY, tcM);
       var cN = getCierre(tc, tcM === 11 ? tcY + 1 : tcY, tcM === 11 ? 0 : tcM + 1);
@@ -4232,15 +4630,16 @@ function generarAnalisisMes(ci) {
       var totRes = cts.reduce(function(s, g) { return s + g.montoCuota; }, 0);
       // tcPagada: paid in full this month
       var tcPagada = tc.ultimoPago && tc.ultimoPago.mes===tcM && tc.ultimoPago.anio===tcY && tc.ultimoPago.tipo==='total';
+      var tcPagadaParcial = tc.ultimoPago && tc.ultimoPago.mes===tcM && tc.ultimoPago.anio===tcY && tc.ultimoPago.tipo==='parcial';
       // tcVencida: past due AND not paid this month
-      var tcVencida = !esFut && dV < 0 && totRes > 0 && !tcPagada;
+      var tcVencida = !esFut && dV < 0 && totRes > 0 && !tcPagada && !tcPagadaParcial;
       var consumo = consumoTCMes(tc.id, tcY, tcM);
       var limite = tc.limite || 500000;
       var pctLimite = clamp(consumo / limite * 100, 0, 100);
 
       html += '<div class="card" style="' +
           (tcPagada ? 'border:2px solid rgba(0,200,150,.5);box-shadow:0 0 0 2px rgba(0,200,150,.15);border-radius:14px' :
-           tcVencida ? 'border:2px solid rgba(240,68,56,.5);box-shadow:0 0 0 2px rgba(240,68,56,.15);border-top:3px solid ' + tc.color :
+           tcPagadaParcial ? 'border:2px solid rgba(245,200,66,.5);box-shadow:0 0 0 2px rgba(245,200,66,.15);border-top:3px solid var(--yellow)' : tcVencida ? 'border:2px solid rgba(240,68,56,.5);box-shadow:0 0 0 2px rgba(240,68,56,.15);border-top:3px solid ' + tc.color :
            'border-top:3px solid ' + tc.color) + '">' +
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">' +
           '<div><div style="font-size:14px;font-weight:800;color:' + tc.color + '">' + tc.nombre + '</div>' +
@@ -4248,8 +4647,8 @@ function generarAnalisisMes(ci) {
             (tc.ultimoPago && tc.ultimoPago.mes===tcM && tc.ultimoPago.anio===tcY ? '<div style="font-size:9px;color:var(--green);font-weight:700;margin-top:2px">Pagado ' + tc.ultimoPago.tipo + ' el ' + fmtDate(new Date(tc.ultimoPago.fecha + 'T12:00:00')) + '</div>' : '') +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:5px">' +
-            (!esFut ? '<span class="pill ' + (tcPagada ? 'pill-g' : tcVencida ? 'pill-r' : dV <= 3 && dV >= 0 ? 'pill-r' : dV === 0 ? 'pill-r' : 'pill-d') + '">' + (tcPagada ? 'Pagada' : tcVencida ? 'VENCIDA!' : dV < 0 ? 'Vencio' : dV === 0 ? 'HOY!' : dV + 'd') + '</span>' : '') +
-            '<button class="edit-btn" data-action="editTarjeta" data-id="' + tc.id + '">?</button>' +
+            (!esFut ? '<span class="pill ' + (tcPagada ? 'pill-g' : tcPagadaParcial ? 'pill-y' : tcVencida ? 'pill-r' : dV <= 3 && dV >= 0 ? 'pill-r' : dV === 0 ? 'pill-r' : 'pill-d') + '">' + (tcPagada ? 'Pagada' : tcPagadaParcial ? 'Pago parcial' : tcVencida ? 'VENCIDA!' : dV < 0 ? 'Vencio' : dV === 0 ? 'HOY!' : dV + 'd') + '</span>' : '') +
+            '<button class="btn btn-s btn-sm" onclick="try{APP.modalEditTarjeta(\'' + tc.id + '\')}catch(e){alert(e.message)}" style="padding:6px 10px;font-size:10px">Editar</button>' +
             '<button class="del-btn" data-del="tarjeta" data-id="' + tc.id + '">x</button>' +
           '</div>' +
         '</div>' +
@@ -4258,7 +4657,7 @@ function generarAnalisisMes(ci) {
         '<div style="margin-bottom:10px">' +
           '<div class="g3" style="margin-bottom:6px">' +
             '<div style="background:var(--s3);border-radius:var(--rs);padding:7px;text-align:center"><div class="lbl" style="margin-bottom:2px">Limite</div><div style="font-size:11px;font-weight:800;color:' + tc.color + '">' + fmtK(limite) + '</div></div>' +
-            '<div style="background:var(--red-glow);border:1px solid rgba(240,68,56,.2);border-radius:var(--rs);padding:7px;text-align:center"><div class="lbl" style="margin-bottom:2px">Consumido</div><div style="font-size:11px;font-weight:800;color:var(--red)">' + fmtK(consumo) + '</div></div>' +
+            '<div style="background:var(--red-glow);border:1px solid rgba(240,68,56,.2);border-radius:var(--rs);padding:7px;text-align:center"><div class="lbl" style="margin-bottom:2px">Consumido</div><div style="font-size:11px;font-weight:800;color:var(--red)">' + fmtK(consumo) + '</div><div style="font-size:9px;color:var(--dim);margin-top:1px">total pendiente</div></div>' +
             '<div style="background:var(--green-glow);border:1px solid rgba(0,200,150,.2);border-radius:var(--rs);padding:7px;text-align:center"><div class="lbl" style="margin-bottom:2px">Disponible</div><div style="font-size:11px;font-weight:800;color:var(--green)">' + fmtK(Math.max(0,limite-consumo)) + '</div></div>' +
           '</div>' +
           '<div class="pb-wrap pb-thick"><div class="pb" style="width:' + pctLimite + '%;background:' + (pctLimite > 80 ? 'var(--red)' : pctLimite > 60 ? 'var(--yellow)' : tc.color) + '"></div></div>' +
@@ -4325,6 +4724,134 @@ function generarAnalisisMes(ci) {
 
 
     html += '<div class="alert a-b"><div class="a-icon">\uD83D\uDCA1</div><div><div class="a-title">?Cuándo conviene comprar?</div><div class="a-body">Compra justo después del cierre para tener ~2 meses antes de pagar.</div></div></div></div>';
+    
+    // === RECOMENDADOR DE TARJETA ===
+    html += '<div class="card" style="margin-bottom:14px;padding:14px">';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">\uD83E\uDDE0 \u00BFQu\u00E9 tarjeta uso hoy?</div>';
+    var recomItems = S.tarjetas.map(function(tc) {
+      var cierre = getCierre(tc, TY, TM);
+      var cierreProx = getCierre(tc, TM === 11 ? TY+1 : TY, TM === 11 ? 0 : TM+1);
+      var hoy = TODAY;
+      var diasACierre, cicloLabel;
+      if (cierre && cierre > hoy) {
+        diasACierre = Math.ceil((cierre - hoy) / 86400000);
+        cicloLabel = 'cierra en ' + diasACierre + ' d\u00EDas (' + cierre.getDate() + ' ' + MC[cierre.getMonth()] + ')';
+      } else if (cierreProx) {
+        diasACierre = Math.ceil((cierreProx - hoy) / 86400000);
+        cicloLabel = 'pr\u00F3x. cierre en ' + diasACierre + ' d\u00EDas (' + cierreProx.getDate() + ' ' + MC[cierreProx.getMonth()] + ')';
+      } else {
+        diasACierre = 0;
+        cicloLabel = 'sin datos de cierre';
+      }
+      var vence = getVence(tc, TY, TM);
+      var venceProx = getVence(tc, TM === 11 ? TY+1 : TY, TM === 11 ? 0 : TM+1);
+      var venceUsar = (vence && vence > hoy) ? vence : venceProx;
+      var diasAVence = venceUsar ? Math.ceil((venceUsar - hoy) / 86400000) : 0;
+      return { tc: tc, diasACierre: diasACierre, diasAVence: diasAVence, cicloLabel: cicloLabel };
+    }).sort(function(a, b) { return b.diasACierre - a.diasACierre; });
+    var recomColor = recomItems.length > 0 ? recomItems[0].tc.color : 'var(--blue)';
+    recomItems.forEach(function(r, i) {
+      var isBest = i === 0;
+      var bgColor = isBest ? 'background:' + r.tc.color + '22;border:1px solid ' + r.tc.color + '55' : 'background:var(--s3);border:1px solid var(--border)';
+      html += '<div style="' + bgColor + ';border-radius:10px;padding:10px 12px;margin-bottom:8px">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center">';
+      html += '<div>';
+      html += '<div style="font-size:12px;font-weight:800;color:' + r.tc.color + '">' + (isBest ? '\u2705 ' : '') + r.tc.nombre + '</div>';
+      html += '<div style="font-size:10px;color:var(--dim);margin-top:2px">' + r.cicloLabel + '</div>';
+      if (r.diasAVence > 0) html += '<div style="font-size:10px;color:var(--dim)">vence en ' + r.diasAVence + ' d\u00EDas</div>';
+      html += '</div>';
+      html += '<div style="text-align:right">';
+      html += '<div style="font-size:22px;font-weight:900;color:' + (isBest ? r.tc.color : 'var(--dim)') + '">' + r.diasACierre + '</div>';
+      html += '<div style="font-size:9px;color:var(--dim)">d\u00EDas de float</div>';
+      html += '</div>';
+      html += '</div>';
+      if (isBest && recomItems.length > 1) {
+        var diff = r.diasACierre - recomItems[1].diasACierre;
+        html += '<div style="font-size:10px;color:var(--green);margin-top:6px;font-weight:700">\u2605 Recomendada: ' + diff + ' d\u00EDas m\u00E1s de plazo que ' + recomItems[1].tc.nombre + '</div>';
+      }
+      html += '</div>';
+    });
+    html += '<div style="font-size:9px;color:var(--dim);margin-top:6px;text-align:center">Usá la tarjeta con m\u00E1s d\u00EDas hasta el cierre para maximizar el plazo de pago</div>';
+    html += '</div>';
+    // === FIN RECOMENDADOR ===
+
+    // === SIMULADOR WHAT-IF ===
+    var simuTcOpts = S.tarjetas.map(function(tc){
+      return '<option value="' + tc.id + '">' + tc.nombre + '</option>';
+    }).join('');
+    html += '<div class="card" style="margin-bottom:14px;padding:14px">';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">\uD83E\uDDEE Simulador: \u00BFC\u00F3mo impacta esta compra?</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">';
+    html += '<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Monto de la compra</div>';
+    html += '<input class="inp" type="number" id="sim_monto" placeholder="Ej: 50000" style="margin-bottom:0"/></div>';
+    html += '<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Cuotas</div>';
+    html += '<select class="inp" id="sim_cuotas" style="margin-bottom:0"><option value="1">1 cuota</option><option value="3">3 cuotas</option><option value="6" selected>6 cuotas</option><option value="12">12 cuotas</option><option value="18">18 cuotas</option><option value="24">24 cuotas</option></select></div>';
+    html += '</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
+    html += '<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Tarjeta</div>';
+    html += '<select class="inp" id="sim_tc" style="margin-bottom:0">' + simuTcOpts + '</select></div>';
+    html += '<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Fecha de compra</div>';
+    html += '<input class="inp" type="date" id="sim_fecha" value="' + TODAY.toISOString().slice(0,10) + '" style="margin-bottom:0"/></div>';
+    html += '</div>';
+    html += '<button class="btn btn-p" style="width:100%;margin-bottom:10px" onclick="APP.simularCompra()">\uD83D\uDD0D Simular impacto</button>';
+    html += '<div id="sim_resultado"></div>';
+    html += '</div>';
+    // === FIN SIMULADOR ===
+
+// === FORECASTING PROXIMOS 3 MESES ===
+    html += '<div class="card" style="margin-bottom:14px;padding:14px">';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">\uD83D\uDCC5 Proyecci\u00F3n pr\u00F3ximos 3 meses</div>';
+    for (var fi = 1; fi <= 3; fi++) {
+      var fM = TM + fi, fY = TY;
+      if (fM > 11) { fM -= 12; fY++; }
+      var fTotal = 0, fItems = [];
+      S.tarjetas.forEach(function(tc) {
+        var cuotas = getCuotasMes(tc.id, fY, fM);
+        var subtotal = cuotas.reduce(function(s,g){return s+g.montoCuota;},0);
+        if (subtotal > 0) fItems.push({nombre: tc.nombre, color: tc.color, monto: subtotal});
+        fTotal += subtotal;
+      });
+      // Agregar promedio de recurrentes
+      var recTotal = S.recurrentes ? S.recurrentes.filter(function(r){return r.tipo==='gasto';}).reduce(function(s,r){return s+r.monto;},0) : 0;
+      var fGrand = fTotal + recTotal;
+      var pctSueldo = S.config.sueldo > 0 ? (fGrand / S.config.sueldo * 100).toFixed(0) : 0;
+      var colorBar = fGrand > S.config.sueldo * 0.8 ? 'var(--red)' : fGrand > S.config.sueldo * 0.5 ? 'var(--yellow)' : 'var(--green)';
+      var pctBar = S.config.sueldo > 0 ? Math.min(fGrand / S.config.sueldo * 100, 100) : 50;
+      html += '<div style="margin-bottom:14px">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">';
+      html += '<div style="font-size:13px;font-weight:800">' + MC[fM] + ' ' + fY + '</div>';
+      html += '<div style="font-family:monospace;font-size:14px;font-weight:900;color:' + colorBar + '">' + fmtK(fGrand) + '</div>';
+      html += '</div>';
+      // Barra de progreso
+      html += '<div style="background:var(--s3);border-radius:4px;height:6px;margin-bottom:6px">';
+      html += '<div style="width:' + pctBar.toFixed(0) + '%;background:' + colorBar + ';border-radius:4px;height:6px"></div>';
+      html += '</div>';
+      // Desglose por tarjeta
+      fItems.forEach(function(it) {
+        html += '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-bottom:2px">';
+        html += '<div style="display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;border-radius:50%;background:' + it.color + '"></div>' + it.nombre + '</div>';
+        html += '<div style="font-family:monospace">' + fmtK(it.monto) + '</div>';
+        html += '</div>';
+      });
+      if (recTotal > 0) {
+        html += '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-bottom:2px">';
+        html += '<div>\uD83D\uDD04 Recurrentes</div><div style="font-family:monospace">' + fmtK(recTotal) + '</div>';
+        html += '</div>';
+      }
+      html += '<div style="font-size:9px;color:var(--dim);margin-top:3px">' + pctSueldo + '% de tus ingresos</div>';
+      html += '</div>';
+      if (fi < 3) html += '<div style="border-top:1px solid var(--border);margin-bottom:12px"></div>';
+    }
+    html += '<div style="font-size:9px;color:var(--dim);text-align:center;margin-top:4px">Proyecci\u00F3n basada en cuotas pendientes + gastos recurrentes</div>';
+    html += '</div>';
+    // === FIN FORECASTING ===
+
+    // AI Analysis button
+    html += '<div style="display:flex;justify-content:flex-end;margin-bottom:6px">';
+    html += '<button class="btn btn-p btn-sm" onclick="try{APP.analizarTC()}catch(e){console.log(e)}" style="gap:5px">';
+    html += '\uD83E\uDDE0 Analizar con IA</button></div>';
+    html += '<div id="tc_ia_result"></div>';
+
     return html;
   }
 
@@ -4366,6 +4893,17 @@ function generarAnalisisMes(ci) {
     html += '</div>';
     html += '<div class="fg"><label>Fecha del pago</label>';
     html += '<input class="inp" type="date" id="pay_fecha" value="' + TODAY.toISOString().slice(0,10) + '"/>';
+    html += '</div>';
+    html += '<div class="fg"><label>Aplicar al ciclo de</label>';
+    var mOpts = '';
+    for (var di3 = -2; di3 <= 2; di3++) {
+      var mOpt = TM + di3, yOpt = TY;
+      if (mOpt < 0) { mOpt += 12; yOpt--; } if (mOpt > 11) { mOpt -= 12; yOpt++; }
+      var selOpt = di3 === 0 ? ' selected' : '';
+      mOpts += '<option value="' + yOpt + '-' + (mOpt < 10 ? '0' : '') + mOpt + '"' + selOpt + '>' + MESES[mOpt] + ' ' + yOpt + '</option>';
+    }
+    html += '<select class="inp" id="pay_ciclo">' + mOpts + '</select>';
+    html += '<div style="font-size:9px;color:var(--dim);margin-top:3px">Mes al que se aplica este pago</div>';
     html += '</div>';
     html += '<div style="display:flex;gap:8px;margin-top:4px">';
     html += '<button class="btn btn-p" style="flex:1;background:'+tc.color+'" data-action="confirmPayTC" data-tcid="'+tcId+'" data-saldo="'+saldo+'">Confirmar pago</button>';
@@ -4430,9 +4968,9 @@ function generarAnalisisMes(ci) {
 
     // 1. Descontar de la cuenta
     if (cuenta.moneda === 'ARS') {
-      cuenta.saldo = Math.max(0, cuenta.saldo - montoPago);
+      cuenta.saldo = cuenta.saldo - montoPago;
     } else {
-      cuenta.saldo = Math.max(0, cuenta.saldo - montoPago / S.config.tipoCambio);
+      cuenta.saldo = cuenta.saldo - montoPago / S.config.tipoCambio;
     }
 
     // 2. Registrar movimiento
@@ -4448,12 +4986,20 @@ function generarAnalisisMes(ci) {
     // Determine which billing cycle this payment covers
     // Find the cycle whose vencimiento is closest to (and after) the payment date
     var pagoFecha = new Date(fecha + 'T12:00:00');
+    // Leer ciclo seleccionado por el usuario
+    var payCicloSel = document.getElementById('pay_ciclo');
     var cicloMes = tcM, cicloAnio = tcY;
-    for (var di2 = -2; di2 <= 1; di2++) {
-      var cm2 = tcM + di2, cy2 = tcY;
-      if (cm2 < 0) { cm2 += 12; cy2--; } if (cm2 > 11) { cm2 -= 12; cy2++; }
-      var venceTest = getVence(tc, cy2, cm2);
-      if (venceTest && venceTest >= pagoFecha) { cicloMes = cm2; cicloAnio = cy2; break; }
+    if (payCicloSel && payCicloSel.value) {
+      var parts = payCicloSel.value.split('-');
+      cicloAnio = parseInt(parts[0]);
+      cicloMes = parseInt(parts[1]);
+    } else {
+      for (var di2 = -2; di2 <= 1; di2++) {
+        var cm2 = tcM + di2, cy2 = tcY;
+        if (cm2 < 0) { cm2 += 12; cy2--; } if (cm2 > 11) { cm2 -= 12; cy2++; }
+        var venceTest = getVence(tc, cy2, cm2);
+        if (venceTest && venceTest >= pagoFecha) { cicloMes = cm2; cicloAnio = cy2; break; }
+      }
     }
     tc.ultimoPago = {fecha: fecha, monto: montoPago, tipo: esPagoTotal ? 'total' : 'parcial', mes: cicloMes, anio: cicloAnio};
 
@@ -4522,7 +5068,14 @@ function generarAnalisisMes(ci) {
     html += '<div class="fg"><label>Limite total ($)</label><input class="inp" type="number" id="nt_limite" placeholder="0"/></div>';
     html += '<div class="fg"><label>Dia de cierre del mes</label><input class="inp" type="number" id="nt_cierre" placeholder="ej: 15" min="1" max="31"/><div style="font-size:9px;color:var(--dim);margin-top:3px">El dia del mes en que cierra el resumen</div></div>';
     html += '<div class="fg"><label>Dia de vencimiento del mes siguiente</label><input class="inp" type="number" id="nt_vence" placeholder="ej: 10" min="1" max="31"/><div style="font-size:9px;color:var(--dim);margin-top:3px">El dia del mes siguiente en que vence el pago</div></div>';
-    html += '<div class="fg"><label>Color</label><select class="inp" id="nt_color">' + colorOpts + '</select></div>';
+    html += '<div class="fg"><label>Color</label>';
+    html += '<div id="nt_color_wrap" style="display:flex;gap:8px;flex-wrap:wrap;padding:6px 0">';
+    ['#3D8EF0','#8B5CF6','#00C896','#F5A623','#F04438','#14B8A6'].forEach(function(col, idx) {
+      var name = colorNames[col] || col;
+      var sel = idx === 0 ? ' selected' : '';
+      html += '<div onclick="document.querySelectorAll(\x27.color-pick\x27).forEach(function(e){e.style.outline=\x27none\x27;e.style.transform=\x27scale(1)\x27});this.style.outline=\x27 2px solid white\x27;this.style.transform=\x27scale(1.2)\x27;document.getElementById(\x27nt_color\x27).value=\x27'+col+'\x27" class="color-pick" style="width:32px;height:32px;border-radius:50%;background:'+col+';cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;color:white;font-weight:700;border:2px solid var(--s3)' + (idx===0?';outline:2px solid white;transform:scale(1.2)':'') + '">' + name + '</div>';
+    });
+    html += '</div><input type="hidden" id="nt_color" value="#3D8EF0"/></div>';
     html += '<div style="display:flex;gap:8px;margin-top:4px">';
     html += '<button class="btn btn-p" style="flex:1" data-action="saveTarjeta" data-id="">Guardar</button>';
     html += '<button class="btn btn-s" data-action="closeModal">Cancelar</button>';
@@ -4531,6 +5084,7 @@ function generarAnalisisMes(ci) {
   }
 
   function modalEditTarjeta(id) {
+    var colorNames = {"#3D8EF0":"Azul","#8B5CF6":"Violeta","#00C896":"Verde","#F5A623":"Naranja","#F04438":"Rojo","#14B8A6":"Teal"};
     var tc = S.tarjetas.find(function(t){return t.id===id;});
     if (!tc) return;
     var colorOpts = ['#3D8EF0','#8B5CF6','#00C896','#F5A623','#F04438','#14B8A6'].map(function(col,i){
@@ -4543,7 +5097,14 @@ function generarAnalisisMes(ci) {
     html += '<div class="fg"><label>Limite total ($)</label><input class="inp" type="number" id="nt_limite" value="' + (tc.limite||0) + '"/></div>';
     html += '<div class="fg"><label>Dia de cierre</label><input class="inp" type="number" id="nt_cierre" value="' + (tc.cierreDia||'') + '" placeholder="ej: 15"/></div>';
     html += '<div class="fg"><label>Dia de vencimiento</label><input class="inp" type="number" id="nt_vence" value="' + (tc.venceDia||'') + '" placeholder="ej: 10"/></div>';
-    html += '<div class="fg"><label>Color</label><select class="inp" id="nt_color">' + colorOpts + '</select></div>';
+    html += '<div class="fg"><label>Color</label>';
+    html += '<div id="nt_color_wrap" style="display:flex;gap:8px;flex-wrap:wrap;padding:6px 0">';
+    ['#3D8EF0','#8B5CF6','#00C896','#F5A623','#F04438','#14B8A6'].forEach(function(col, idx) {
+      var name = colorNames[col] || col;
+      var sel = idx === 0 ? ' selected' : '';
+      html += '<div onclick="document.querySelectorAll(\x27.color-pick\x27).forEach(function(e){e.style.outline=\x27none\x27;e.style.transform=\x27scale(1)\x27});this.style.outline=\x27 2px solid white\x27;this.style.transform=\x27scale(1.2)\x27;document.getElementById(\x27nt_color\x27).value=\x27'+col+'\x27" class="color-pick" style="width:32px;height:32px;border-radius:50%;background:'+col+';cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;color:white;font-weight:700;border:2px solid var(--s3)' + (idx===0?';outline:2px solid white;transform:scale(1.2)':'') + '">' + name + '</div>';
+    });
+    html += '</div><input type="hidden" id="nt_color" value="#3D8EF0"/></div>';
     html += '<div style="display:flex;gap:8px;margin-top:4px">';
     html += '<button class="btn btn-p" style="flex:1" data-action="saveTarjeta" data-id="'+id+'">Guardar</button>';
     html += '<button class="btn btn-s" data-action="closeModal">Cancelar</button>';
@@ -4593,107 +5154,133 @@ function generarAnalisisMes(ci) {
   }
 
   function analizarTC() {
-    var resultDiv = document.getElementById('tc_ia_result');
+    var resultDiv = document.getElementById("tc_ia_result");
     if (!resultDiv) return;
-    resultDiv.innerHTML =
-      '<div class="alert a-b" style="margin-bottom:10px">' +
-      '<div class="a-icon">\uD83E\uDDE0</div>' +
-      '<div><div class="a-title">Analizando tus tarjetas...</div>' +
-      '<div class="a-body">Procesando consumos, limites e historial. Un momento.</div></div></div>';
+    resultDiv.style.display = "block";
+    var html2 = "";
 
-    // Build context for Claude
-    var totalLim = S.tarjetas.reduce(function(s,t){return s+(t.limite||0);},0);
-    var totalCons = S.tarjetas.reduce(function(s,t){return s+consumoTC(t.id);},0);
-    var ing = S.config.sueldo + compFijosIngreso();
-    var pctTC = ing > 0 ? (totalCons/ing*100).toFixed(1) : 0;
-    var inflAcum = S.inflaciones.reduce(function(s,i){return s*(1+i.valor/100);},1);
-    var inflMensual = (inflAct()*100).toFixed(1);
-
-    var tarjetasInfo = S.tarjetas.map(function(t) {
-      var cons = consumoTC(t.id);
-      var lim = t.limite || 0;
-      var pct = lim > 0 ? (cons/lim*100).toFixed(0) : 0;
-      var cuotas = S.gastosTC.filter(function(g){return g.tcId===t.id&&g.pendientes>0;});
-      return t.nombre + ': consumido $' + fmtK(cons) + ' de $' + fmtK(lim) + ' (' + pct + '%), ' + cuotas.length + ' cuotas activas';
-    }).join('. ');
-
-    var cuotasDetalle = S.gastosTC.filter(function(g){return g.pendientes>0;}).slice(0,8).map(function(g) {
-      var tc = S.tarjetas.find(function(t){return t.id===g.tcId;});
-      return (tc?tc.nombre:'TC') + ': ' + g.desc + ' $' + fmtK(g.montoCuota) + '/mes x' + g.pendientes + ' cuotas';
-    }).join('. ');
-
-    // Build spending by category and by day
-    var gastosXCat = {};
-    var gastosXDia = {};
-    S.gastosTC.forEach(function(g) {
-      var cat = g.cat || 'Sin categoria';
-      gastosXCat[cat] = (gastosXCat[cat]||0) + g.monto;
-      var dia = new Date(g.fechaCompra+'T12:00:00').getDate();
-      gastosXDia[dia] = (gastosXDia[dia]||0) + g.montoCuota;
-    });
-    var topCats = Object.keys(gastosXCat).sort(function(a,b){return gastosXCat[b]-gastosXCat[a];}).slice(0,5).map(function(k){return k+': $'+fmtK(gastosXCat[k]);}).join(', ');
-    var diasOrdenados = Object.keys(gastosXDia).sort(function(a,b){return gastosXDia[b]-gastosXDia[a];});
-    var diaMasGastos = diasOrdenados.length > 0 ? 'dia '+diasOrdenados[0]+' ($'+fmtK(gastosXDia[diasOrdenados[0]])+')' : 'sin datos';
-    var totalCuotas = S.gastosTC.reduce(function(s,g){return s+g.cuotasTotal;},0);
-    var totalCuotasPend = S.gastosTC.reduce(function(s,g){return s+g.pendientes;},0);
-
-    var prompt = 'Sos un asesor financiero personal especializado en el mercado argentino. ' +
-      'Analiza en profundidad los patrones de consumo con tarjetas de credito y da 4 insights clave. ' +
-      'DATOS FINANCIEROS: Ingreso mensual $' + fmtK(ing) + '. ' +
-      'Tarjetas: ' + tarjetasInfo + '. ' +
-      'Total consumido: $' + fmtK(totalCons) + ' (' + pctTC + '% del ingreso). ' +
-      'PATRONES DE CONSUMO: Categorias principales: ' + (topCats||'sin datos') + '. ' +
-      'Dia del mes con mas compras: ' + diaMasGastos + '. ' +
-      'Cuotas totales activas: ' + totalCuotasPend + ' pendientes de ' + totalCuotas + ' totales. ' +
-      'Cuotas detalle: ' + cuotasDetalle + '. ' +
-      'CONTEXTO ARGENTINO: Inflacion mensual ' + inflMensual + '%. TC oficial $' + S.config.tipoCambio + '/USD. ' +
-      'Responde SOLO con JSON: {"insights": [{"titulo": "...", "cuerpo": "...", "tipo": "alerta|consejo|oportunidad"}, ...]} ' +
-      'Da exactamente 4 insights en espanol argentino con numeros reales. Analiza: 1) categoria con mas gasto, 2) patron de dias de compra, 3) impacto de cuotas vs inflacion, 4) recomendacion accionable concreta. Sin texto fuera del JSON.';
-
-    fetch('https://odd-dream-46ba.colodegatti.workers.dev', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 800,
-        messages: [{role: 'user', content: prompt}]
-      })
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(data) {
-      var texto = '';
-      if (data.content) data.content.forEach(function(b){ if(b.type==='text') texto += b.text; });
-      // Extract JSON
-      var match = texto.match(/\{[\s\S]*\}/);
-      if (!match) throw new Error('Respuesta inesperada');
-      var parsed = JSON.parse(match[0]);
-      var insights = parsed.insights || [];
-
-      var html2 = '<div class="card c-p" style="margin-bottom:10px">';
-      html2 += '<div class="sec">\uD83E\uDDE0 Analisis IA de tus tarjetas</div>';
-      insights.forEach(function(ins) {
-        var cls = ins.tipo === 'alerta' ? 'a-r' : ins.tipo === 'oportunidad' ? 'a-g' : 'a-b';
-        var icon = ins.tipo === 'alerta' ? '\uD83D\uDEA8' : ins.tipo === 'oportunidad' ? '\uD83D\uDCA1' : '\uD83D\uDCCB';
-        html2 += '<div class="alert ' + cls + '" style="margin-bottom:8px">';
-        html2 += '<div class="a-icon">' + icon + '</div>';
-        html2 += '<div><div class="a-title">' + ins.titulo + '</div>';
-        html2 += '<div class="a-body">' + ins.cuerpo + '</div></div></div>';
+    // === ANALISIS LOCAL - SOLO TARJETAS DE CREDITO ===
+    var cuotasMesTC = [];
+    S.tarjetas.forEach(function(tc) {
+      var items = getCuotasMes(tc.id, viewY, viewM);
+      items.forEach(function(g) {
+        var orig = S.gastosTC.find(function(x){return x.id===g.id;});
+        if (orig) cuotasMesTC.push({desc: orig.desc, cat: orig.cat || "Otros", monto: g.montoCuota, montoTotal: orig.monto, tcNombre: tc.nombre});
       });
-      html2 += '<div style="font-size:9px;color:var(--dim);text-align:right;margin-top:4px">Analisis generado por IA con tus datos reales</div>';
-      html2 += '</div>';
-
-      resultDiv.innerHTML = html2;
-    })
-    .catch(function(err) {
-      resultDiv.innerHTML =
-        '<div class="alert a-r" style="margin-bottom:10px"><div class="a-icon">!</div>' +
-        '<div><div class="a-title">No se pudo analizar</div>' +
-        '<div class="a-body">' + (err.message||'Error de conexion') + '. Verifica tu internet e intentá de nuevo.</div>' +
-        '</div></div>';
     });
+
+    var pM2 = viewM === 0 ? 11 : viewM - 1;
+    var pY2 = viewM === 0 ? viewY - 1 : viewY;
+    var cuotasMesAnt = [];
+    S.tarjetas.forEach(function(tc) {
+      var items = getCuotasMes(tc.id, pY2, pM2);
+      items.forEach(function(g) {
+        var orig = S.gastosTC.find(function(x){return x.id===g.id;});
+        if (orig) cuotasMesAnt.push({cat: orig.cat || "Otros", monto: g.montoCuota});
+      });
+    });
+
+    var totalGastos = cuotasMesTC.reduce(function(s,g){return s+g.monto;},0);
+    var totalAnt = cuotasMesAnt.reduce(function(s,g){return s+g.monto;},0);
+    var totalIngresos = S.config.sueldo || 1;
+
+    html2 += "<div class=\"card c-p\" style=\"margin-bottom:10px\">";
+    html2 += "<div class=\"sec\">\uD83D\uDCB3 Analisis TC - " + MC[viewM] + " " + viewY + "</div>";
+
+    if (cuotasMesTC.length === 0) {
+      html2 += "<div class=\"alert a-b\" style=\"margin-bottom:8px\"><div class=\"a-icon\">i</div><div><div class=\"a-title\">Sin consumos TC este mes</div><div class=\"a-body\">No hay cuotas de tarjeta en " + MC[viewM] + " " + viewY + ".</div></div></div>";
+      html2 += "</div>";
+      resultDiv.innerHTML = html2;
+      return;
+    }
+
+    // 1. TOP 5 CATEGORIAS TC
+    var catMap = {};
+    cuotasMesTC.forEach(function(g) {
+      catMap[g.cat] = (catMap[g.cat]||0) + g.monto;
+    });
+    var topCats = Object.keys(catMap).sort(function(a,b){return catMap[b]-catMap[a];}).slice(0,5);
+    html2 += "<div class=\"alert a-b\" style=\"margin-bottom:8px\"><div class=\"a-icon\">\uD83C\uDFC6</div><div><div class=\"a-title\">Top categorias en TC</div><div class=\"a-body\">";
+    topCats.forEach(function(cat, idx) {
+      var pct = totalGastos > 0 ? (catMap[cat]/totalGastos*100).toFixed(0) : 0;
+      html2 += (idx+1) + ". " + cat + ": " + fmtK(catMap[cat]) + " (" + pct + "%)<br>";
+    });
+    html2 += "</div></div></div>";
+
+    // 2. GASTOS HORMIGA EN TC
+    var descMap = {};
+    cuotasMesTC.forEach(function(g) {
+      var key = g.desc.toLowerCase().trim();
+      if (!descMap[key]) descMap[key] = {total: 0, count: 0, desc: g.desc};
+      descMap[key].total += g.monto;
+      descMap[key].count++;
+    });
+    var hormiga = Object.keys(descMap).filter(function(k) {
+      return descMap[k].count >= 2 && descMap[k].total / descMap[k].count < 10000;
+    }).sort(function(a,b){return descMap[b].total-descMap[a].total;}).slice(0,5);
+
+    if (hormiga.length > 0) {
+      var totalHormiga = hormiga.reduce(function(s,k){return s+descMap[k].total;},0);
+      html2 += "<div class=\"alert a-y\" style=\"margin-bottom:8px\"><div class=\"a-icon\">\uD83D\uDC1C</div><div><div class=\"a-title\">Gastos hormiga en TC</div><div class=\"a-body\">";
+      hormiga.forEach(function(k) {
+        html2 += "\u2022 " + descMap[k].desc + ": " + descMap[k].count + " cuotas = " + fmtK(descMap[k].total) + "<br>";
+      });
+      html2 += "<br><b>Total hormiga: " + fmtK(totalHormiga) + " (" + (totalGastos>0?(totalHormiga/totalGastos*100).toFixed(0):0) + "% del gasto TC)</b>";
+      html2 += "</div></div></div>";
+    } else {
+      html2 += "<div class=\"alert a-g\" style=\"margin-bottom:8px\"><div class=\"a-icon\">\u2705</div><div><div class=\"a-title\">Sin gastos hormiga en TC</div><div class=\"a-body\">No se detectaron consumos chicos repetidos este mes.</div></div></div>";
+    }
+
+    // 3. CONSUMO MAS ALTO DEL MES EN TC
+    var gastoMax = cuotasMesTC.slice().sort(function(a,b){return b.monto-a.monto;})[0];
+    if (gastoMax) {
+      html2 += "<div class=\"alert a-r\" style=\"margin-bottom:8px\"><div class=\"a-icon\">\uD83D\uDCB8</div><div><div class=\"a-title\">Mayor cuota TC del mes</div><div class=\"a-body\">";
+      html2 += gastoMax.desc + " (" + gastoMax.cat + ") - " + gastoMax.tcNombre + ": <b>" + fmt(gastoMax.monto) + "/mes</b>";
+      html2 += "<br>" + (totalGastos>0?(gastoMax.monto/totalGastos*100).toFixed(0):0) + "% del total TC";
+      html2 += "</div></div></div>";
+    }
+
+    // 4. COMPARACION VS MES ANTERIOR
+    if (totalAnt > 0) {
+      var catMapAnt = {};
+      cuotasMesAnt.forEach(function(g) { catMapAnt[g.cat] = (catMapAnt[g.cat]||0) + g.monto; });
+      var cambios = topCats.map(function(cat) {
+        var act = catMap[cat] || 0;
+        var ant = catMapAnt[cat] || 0;
+        var diff = ant > 0 ? ((act-ant)/ant*100).toFixed(0) : (act > 0 ? "+100" : "0");
+        return {cat: cat, act: act, ant: ant, diff: +diff};
+      }).filter(function(c){return c.ant > 0 || c.act > 0;});
+      if (cambios.length > 0) {
+        html2 += "<div class=\"alert a-b\" style=\"margin-bottom:8px\"><div class=\"a-icon\">\uD83D\uDCC8</div><div><div class=\"a-title\">Vs " + MC[pM2] + " en TC</div><div class=\"a-body\">";
+        var diffTotal = ((totalGastos-totalAnt)/totalAnt*100).toFixed(0);
+        var arrowT = diffTotal > 0 ? "\u2191" : (diffTotal < 0 ? "\u2193" : "=");
+        var colT = diffTotal > 0 ? "color:var(--red)" : "color:var(--green)";
+        html2 += "Total TC: <span style=\"" + colT + "\">" + arrowT + " " + (diffTotal>0?"+":"") + diffTotal + "%</span> (" + fmtK(totalAnt) + " \u2192 " + fmtK(totalGastos) + ")<br>";
+        cambios.forEach(function(c) {
+          var arrow = c.diff > 0 ? "\u2191" : (c.diff < 0 ? "\u2193" : "=");
+          var col = c.diff > 0 ? "color:var(--red)" : "color:var(--green)";
+          html2 += c.cat + ": <span style=\"" + col + "\">" + arrow + " " + (c.diff>0?"+":"") + c.diff + "%</span><br>";
+        });
+        html2 += "</div></div></div>";
+      }
+    }
+
+    // 5. SUGERENCIA
+    var pctGasto = totalIngresos > 0 ? (totalGastos/totalIngresos*100).toFixed(0) : 0;
+    var sugerencia = "";
+    if (+pctGasto > 40) sugerencia = "Tus tarjetas representan " + pctGasto + "% de tus ingresos. Cuidado con el endeudamiento en cuotas.";
+    else if (+pctGasto > 25) sugerencia = "Gastas " + pctGasto + "% de tus ingresos en TC. Margen razonable, pero revisa las cuotas fijas.";
+    else sugerencia = "Buen uso de TC: solo " + pctGasto + "% de tus ingresos. Segui controlando los consumos.";
+    if (topCats.length > 0) sugerencia += " Mayor gasto en " + topCats[0] + " (" + fmtK(catMap[topCats[0]]) + ").";
+    if (hormiga.length > 0) sugerencia += " Hay " + hormiga.length + " gasto(s) hormiga por " + fmtK(hormiga.reduce(function(s,k){return s+descMap[k].total;},0)) + " en TC.";
+
+    html2 += "<div class=\"alert a-g\" style=\"margin-bottom:8px\"><div class=\"a-icon\">\uD83D\uDCA1</div><div><div class=\"a-title\">Sugerencia</div><div class=\"a-body\">" + sugerencia + "</div></div></div>";
+    html2 += "<div style=\"font-size:9px;color:var(--dim);text-align:right\">Analisis de consumos en tarjetas de credito</div>";
+    html2 += "</div>";
+    resultDiv.innerHTML = html2;
   }
 
-  function modalEditCuotaTC(id) {
+    function modalEditCuotaTC(id) {
     var g = S.gastosTC.find(function(x){return x.id===id;});
     if (!g) return;
     var tc = S.tarjetas.find(function(t){return t.id===g.tcId;});
@@ -4819,13 +5406,14 @@ function generarAnalisisMes(ci) {
       '<div class="fg"><label>Descripcion</label><input class="inp" id="tc_d" placeholder="ej: Heladera Samsung"/></div>' +
       '<div class="fg"><label>Mes de imputacion</label>' +
         '<select class="inp" id="tc_mes">' + mesOpts + '</select>' +
-        '<div style="font-size:9px;color:var(--dim);margin-top:3px">El mes en que aparece este gasto en tu resumen</div>' +
+        '<div style="font-size:9px;color:var(--dim);margin-top:3px" id="tc_mes_hint">El mes en que aparece este gasto en tu resumen</div>' +
       '</div>' +
       '<div class="fg"><label>Categoria</label>' +
         '<select class="inp" id="tc_cat">' +
           (S.catsTC||['Supermercado','Restaurantes','Ropa','Electronica','Salud','Educacion','Viajes','Combustible','Entretenimiento','Servicios','Compras','Otros']).map(function(cat){ return '<option value="'+cat+'">'+cat+'</option>'; }).join('') +
         '</select></div>' +
       '<div class="fg"><label>Fecha real de compra</label><input class="inp" type="date" id="tc_f" value="' + TODAY.toISOString().slice(0,10) + '"/></div>' +
+      '<div style="margin-top:4px"><button style="width:100%;background:var(--s3);border:1px solid var(--border);border-radius:8px;color:var(--dim);font-size:11px;font-weight:700;padding:7px;cursor:pointer;font-family:inherit" onclick="APP.sugerirPeriodoTC()">Calcular ciclo de facturacion</button></div>' +
       '<div class="fg"><label>Monto total ($)</label>' +
         '<input class="inp" type="number" id="tc_m" placeholder="0" oninput="APP.calcTCPreview()"/>' +
         '<div style="display:flex;gap:5px;margin-top:6px" id="tc_calc_row">' +
@@ -4878,6 +5466,93 @@ function generarAnalisisMes(ci) {
       prev.textContent = cuotas > 1 ? 'Cuota estimada: $' + Math.round(monto/cuotas).toLocaleString('es-AR') + '/mes x' + cuotas : '';
     } else {
       prev.textContent = '';
+    }
+  }
+
+  function simularCompra() {
+    var monto = parseFloat(document.getElementById('sim_monto').value) || 0;
+    var cuotas = parseInt(document.getElementById('sim_cuotas').value) || 1;
+    var tcId = document.getElementById('sim_tc').value;
+    var fecha = document.getElementById('sim_fecha').value;
+    var res = document.getElementById('sim_resultado');
+    if (!monto || monto <= 0) { res.innerHTML = '<div style="color:var(--red);font-size:11px">Ingres\u00E1 un monto v\u00E1lido</div>'; return; }
+    if (!tcId || !fecha) { res.innerHTML = '<div style="color:var(--red);font-size:11px">Seleccion\u00E1 tarjeta y fecha</div>'; return; }
+    var tc = S.tarjetas.find(function(t){return t.id===tcId;});
+    if (!tc) return;
+    var montoCuota = monto / cuotas;
+    // Calcular en que ciclo cae la primera cuota
+    var ciclo = getCicloCompra(tc, fecha);
+    var html2 = '';
+    html2 += '<div style="font-size:11px;font-weight:700;margin-bottom:8px">Impacto de ' + fmtK(monto) + ' en ' + cuotas + ' cuota' + (cuotas>1?'s':'') + ' de ' + fmtK(montoCuota) + '/mes:</div>';
+    // Mostrar impacto en los proximos 4 meses
+    var totalImpacto = 0;
+    for (var si = 0; si < 4; si++) {
+      var sM = ciclo.m + si, sY = ciclo.y;
+      if (sM > 11) { sM -= 12; sY++; }
+      var tieneCuota = si < cuotas;
+      // Calcular total actual del mes (sin la compra simulada)
+      var totalActual = S.tarjetas.reduce(function(s,t){ return s + getCuotasMes(t.id, sY, sM).reduce(function(s2,g){return s2+g.montoCuota;},0); }, 0);
+      var totalNuevo = totalActual + (tieneCuota ? montoCuota : 0);
+      var pctSueldo = S.config.sueldo > 0 ? (totalNuevo / S.config.sueldo * 100).toFixed(0) : 0;
+      var colorMes = totalNuevo > S.config.sueldo * 0.8 ? 'var(--red)' : totalNuevo > S.config.sueldo * 0.5 ? 'var(--yellow)' : 'var(--green)';
+      html2 += '<div style="background:var(--s3);border-radius:8px;padding:8px 10px;margin-bottom:6px">';
+      html2 += '<div style="display:flex;justify-content:space-between;align-items:center">';
+      html2 += '<div style="font-size:11px;font-weight:700">' + MC[sM] + ' ' + sY + (si===0?' <span style="font-size:9px;color:var(--dim)">(1ra cuota)</span>':'') + '</div>';
+      html2 += '<div style="text-align:right">';
+      html2 += '<div style="font-family:monospace;font-size:13px;font-weight:800;color:' + colorMes + '">' + fmtK(totalNuevo) + '</div>';
+      if (tieneCuota) html2 += '<div style="font-size:9px;color:var(--dim)">+' + fmtK(montoCuota) + ' por esta compra</div>';
+      html2 += '</div></div>';
+      if (tieneCuota) {
+        var pctBar = Math.min(totalNuevo / Math.max(S.config.sueldo, 1) * 100, 100);
+        html2 += '<div style="background:var(--s2);border-radius:3px;height:4px;margin-top:6px">';
+        html2 += '<div style="width:' + pctBar.toFixed(0) + '%;background:' + colorMes + ';border-radius:3px;height:4px"></div></div>';
+        html2 += '<div style="font-size:9px;color:var(--dim);margin-top:2px">' + pctSueldo + '% de tus ingresos</div>';
+        totalImpacto += montoCuota;
+      }
+      html2 += '</div>';
+    }
+    // Ciclo recomendado
+    var recomTc = null, maxFloat = -1;
+    S.tarjetas.forEach(function(t) {
+      var cierreT = getCierre(t, TY, TM);
+      var diasT = cierreT && cierreT > TODAY ? Math.ceil((cierreT - TODAY)/86400000) : 0;
+      if (diasT > maxFloat) { maxFloat = diasT; recomTc = t; }
+    });
+    if (recomTc && recomTc.id !== tcId) {
+      html2 += '<div style="background:var(--green-glow);border:1px solid rgba(0,200,150,.3);border-radius:8px;padding:8px 10px;margin-top:6px">';
+      html2 += '<div style="font-size:10px;font-weight:700;color:var(--green)">\uD83D\uDCA1 Consejo: us\u00E1 ' + recomTc.nombre + ' para esta compra</div>';
+      html2 += '<div style="font-size:9px;color:var(--dim);margin-top:2px">Tiene ' + maxFloat + ' d\u00EDas hasta el cierre — te da m\u00E1s tiempo para pagar</div>';
+      html2 += '</div>';
+    }
+    res.innerHTML = html2;
+  }
+
+  function sugerirPeriodoTC() {
+    var tcSel = document.getElementById('tc_id');
+    var fechaSel = document.getElementById('tc_f');
+    var mesSel = document.getElementById('tc_mes');
+    if (!tcSel || !fechaSel || !mesSel) return;
+    var tcId = tcSel.value;
+    var fecha = fechaSel.value;
+    if (!tcId || !fecha) return;
+    var tc = S.tarjetas.find(function(t){return t.id===tcId;});
+    if (!tc) return;
+    var ciclo = getCicloCompra(tc, fecha);
+    var val = ciclo.y + '-' + (ciclo.m < 10 ? '0' + ciclo.m : '' + ciclo.m);
+    var opts = mesSel.options;
+    var encontrado = false;
+    for (var i = 0; i < opts.length; i++) {
+      if (opts[i].value === val) { mesSel.selectedIndex = i; encontrado = true; break; }
+    }
+    var hint = document.getElementById('tc_mes_hint');
+    if (hint) {
+      if (encontrado) {
+        hint.textContent = 'Ciclo sugerido: ' + MESES[ciclo.m] + ' ' + ciclo.y;
+        hint.style.color = 'var(--green)';
+      } else {
+        hint.textContent = 'Ciclo: ' + MESES[ciclo.m] + ' ' + ciclo.y + ' (fuera del rango)';
+        hint.style.color = 'var(--yellow)';
+      }
     }
   }
 
@@ -4982,9 +5657,39 @@ function generarAnalisisMes(ci) {
       var vencimientoMes = new Date(TY, TM, diaPago);
       var yaVencio = TODAY >= vencimientoMes;
       var pagadoEsteMes = p.ultimoPago && p.ultimoPago.anio === TY && p.ultimoPago.mes === TM;
+      // Detectar si hay cuotas de meses anteriores sin pagar
+      var mesAntPago = TM === 0 ? 11 : TM - 1;
+      var anioAntPago = TM === 0 ? TY - 1 : TY;
+      var pagadoMesAnt = p.ultimoPago && (
+        (p.ultimoPago.anio === TY && p.ultimoPago.mes === TM) ||
+        (p.ultimoPago.anio === anioAntPago && p.ultimoPago.mes === mesAntPago) ||
+        (p.ultimoPago.anio > anioAntPago) ||
+        (p.ultimoPago.anio === anioAntPago && p.ultimoPago.mes > mesAntPago)
+      );
+      // Cuota vencida: solo si ultimoPago no es del mes actual ni del mes anterior
+      // Verificar pagos usando p.pagos (mas confiable que ultimoPago)
+      var pagoReciente = false;
+      if (p.pagos && p.pagos.length > 0) {
+        p.pagos.forEach(function(pg) {
+          if ((pg.anio === TY && pg.mes === TM) ||
+              (pg.anio === anioAntPago && pg.mes === mesAntPago) ||
+              pg.anio > TY || (pg.anio === TY && pg.mes > TM)) {
+            pagoReciente = true;
+          }
+        });
+      } else if (p.ultimoPago) {
+        pagoReciente = (
+          (p.ultimoPago.anio === TY && p.ultimoPago.mes === TM) ||
+          (p.ultimoPago.anio === anioAntPago && p.ultimoPago.mes === mesAntPago) ||
+          p.ultimoPago.anio > TY || (p.ultimoPago.anio === TY && p.ultimoPago.mes > TM)
+        );
+      }
+      var cuotaVencidaAnt = false; // desactivado temporalmente
       var estadoLabel, estadoColor, estadoBg, diasHasta = 99;
       if (pagadoEsteMes) {
         estadoLabel = 'Pagado'; estadoColor = 'var(--green)'; estadoBg = 'var(--green-glow)';
+      } else if (cuotaVencidaAnt) {
+        estadoLabel = '\u26A0 Cuota anterior impaga'; estadoColor = 'var(--red)'; estadoBg = 'var(--red-glow)';
       } else if (yaVencio) {
         estadoLabel = 'Impago'; estadoColor = 'var(--red)'; estadoBg = 'var(--red-glow)';
       } else {
@@ -5037,6 +5742,7 @@ function generarAnalisisMes(ci) {
         html += '<div><span style="color:var(--green);font-weight:700">Cuota ' + pg.cuotaN + '</span>';
         html += '<span style="color:var(--dim);margin-left:6px">' + mesNom + tipoLabel + '</span></div>';
         html += '<div style="font-family:monospace;color:var(--text)">' + fmt(pg.monto) + '</div>';
+        html += '<button style="font-size:9px;color:var(--red);background:none;border:1px solid var(--red);border-radius:6px;padding:2px 7px;cursor:pointer;font-family:inherit" onclick="APP.revertirPagoPrest(' + JSON.stringify(p.id) + ',' + pg.cuotaN + ')">Revertir</button>';
         html += '</div>';
       });
       html += '</div></div>';
@@ -5172,6 +5878,22 @@ function generarAnalisisMes(ci) {
     html += '<div class="fg"><label>Debitar de cuenta</label>';
     html += '<select class="inp" id="pp_cuenta">' + cuentasOpts + '</select>';
     html += '</div>';
+    html += '<div class="fg"><label>Aplicar al mes de</label>';
+    // Detectar si hay cuota del mes anterior sin pagar
+    var ppMesAnt = TM === 0 ? 11 : TM - 1;
+    var ppAnioAnt = TM === 0 ? TY - 1 : TY;
+    var ppCuotaAtrasada = !p.ultimoPago || !(p.ultimoPago.anio === TY && p.ultimoPago.mes === TM) && !(p.ultimoPago.anio === ppAnioAnt && p.ultimoPago.mes === ppMesAnt);
+    var ppDefaultMes = ppCuotaAtrasada ? -1 : 0;
+    var ppMesOpts = '';
+    for (var pmi = -2; pmi <= 1; pmi++) {
+      var pmM = TM + pmi, pmY = TY;
+      if (pmM < 0) { pmM += 12; pmY--; } if (pmM > 11) { pmM -= 12; pmY++; }
+      var pmSel = pmi === ppDefaultMes ? ' selected' : '';
+      ppMesOpts += '<option value="' + pmY + '-' + (pmM < 10 ? '0' : '') + pmM + '"' + pmSel + '>' + MC[pmM] + ' ' + pmY + '</option>';
+    }
+    html += '<select class="inp" id="pp_mes">' + ppMesOpts + '</select>';
+    html += '<div style="font-size:9px;color:var(--dim);margin-top:2px">Mes al que corresponde esta cuota</div>';
+    html += '</div>';
     html += '<div class="fg"><label>Fecha del pago</label>';
     html += '<input class="inp" type="date" id="pp_fecha" value="' + TODAY.toISOString().slice(0,10) + '"/>';
     html += '</div>';
@@ -5189,6 +5911,30 @@ function generarAnalisisMes(ci) {
     openM(html);
   }
 
+  function revertirPagoPrest(prestId, cuotaN) {
+    var p = S.prestamos.find(function(x){return x.id===prestId;});
+    if (!p) return;
+    var pg = p.pagos ? p.pagos.find(function(x){return x.cuotaN===cuotaN;}) : null;
+    if (!pg) { showAlert('Pago no encontrado'); return; }
+    // Confirmar
+    var ok = confirm('Revertir cuota ' + cuotaN + ' de ' + p.nombre + ' por ' + fmt(pg.monto) + '?\nEsto devolvera el dinero a la cuenta y eliminara el registro del pago.');
+    if (!ok) return;
+    // 1. Devolver saldo a la cuenta
+    var cuenta = S.cuentas.find(function(a){return a.id===pg.cuentaId;});
+    if (cuenta) cuenta.saldo = cuenta.saldo + pg.monto;
+    // 2. Eliminar el movimiento asociado
+    S.movimientos = S.movimientos.filter(function(m){
+      return !(m.cat === 'Prestamo' && m.monto === pg.monto && m.fecha === pg.fecha);
+    });
+    // 3. Revertir el prestamo
+    p.pagos = p.pagos.filter(function(x){return x.cuotaN !== cuotaN;});
+    p.cuotaN = Math.max(1, cuotaN);
+    p.ultimoPago = p.pagos.length > 0 ? p.pagos[p.pagos.length-1] : null;
+    save();
+    render();
+    showAlert('Cuota ' + cuotaN + ' revertida. Saldo devuelto a la cuenta.');
+  }
+
   function confirmarPagarPrest(id) {
     var p = S.prestamos.find(function(x){return x.id===id;});
     if (!p) return;
@@ -5199,7 +5945,7 @@ function generarAnalisisMes(ci) {
 
     // 1. Descontar de la cuenta
     var saldoInsuf = cuenta.saldo < p.cuota;
-    cuenta.saldo = Math.max(0, cuenta.saldo - p.cuota);
+    cuenta.saldo = cuenta.saldo - p.cuota;
 
     // 2. Registrar movimiento
     S.movimientos.push({
@@ -5214,10 +5960,14 @@ function generarAnalisisMes(ci) {
     });
 
     // 3. Avanzar la cuota y registrar en historial
+    var ppMesSel = document.getElementById('pp_mes');
+    var ppMesVal = ppMesSel ? ppMesSel.value.split('-') : [TY, TM];
+    var ppAnio = ppMesSel ? parseInt(ppMesVal[0]) : TY;
+    var ppMes = ppMesSel ? parseInt(ppMesVal[1]) : TM;
     if (!p.pagos) p.pagos = [];
-    p.pagos.push({cuotaN: p.cuotaN, mes: TM, anio: TY, monto: p.cuota, fecha: fecha, tipo: 'normal'});
+    p.pagos.push({cuotaN: p.cuotaN, mes: ppMes, anio: ppAnio, monto: p.cuota, fecha: fecha, cuentaId: cuentaId, tipo: 'normal'});
     p.cuotaN = p.cuotaN + 1;
-    p.ultimoPago = {anio: TY, mes: TM, fecha: fecha};
+    p.ultimoPago = {anio: ppAnio, mes: ppMes, fecha: fecha, cuentaId: cuentaId};
 
     save();
     closeM();
@@ -5367,13 +6117,11 @@ function generarAnalisisMes(ci) {
     var html = '<div class="page">' +
       '<div class="page-title">Más</div>' +
       '<div class="tabs">' +
-        '<button class="tab ' + (masTab === 'inversiones' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'inversiones\')}catch(e){console.log(e)}">Portfolio</button>' +
-        '<button class="tab ' + (masTab === 'proyeccion' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'proyeccion\')}catch(e){console.log(e)}">5/20 A</button>' +
-        '<button class="tab ' + (masTab === 'score' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'score\')}catch(e){console.log(e)}">Score</button>' +
-        '<button class="tab ' + (masTab === 'metas' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'metas\')}catch(e){console.log(e)}">Metas</button>' +
-        '<button class="tab ' + (masTab === 'presupuesto' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'presupuesto\')}catch(e){console.log(e)}">Presup.</button>' +
-        '<button class="tab ' + (masTab === 'recurrentes' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'recurrentes\')}catch(e){console.log(e)}">Recur.</button>' +
         '<button class="tab ' + (masTab === 'config' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'config\')}catch(e){console.log(e)}">Config</button>' +
+        '<button class="tab ' + (masTab === 'recurrentes' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'recurrentes\')}catch(e){console.log(e)}">Recur.</button>' +
+        '<button class="tab ' + (masTab === 'presupuesto' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'presupuesto\')}catch(e){console.log(e)}">Presup.</button>' +
+        '<button class="tab ' + (masTab === 'metas' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'metas\')}catch(e){console.log(e)}">Metas</button>' +
+        '<button class="tab ' + (masTab === 'inversiones' ? 'on' : '') + '" onclick="try{APP.setMasTab(\'inversiones\')}catch(e){console.log(e)}">Portfolio</button>' +
       '</div>' +
       (masTab === 'inversiones' ? renderInversiones() : masTab === 'proyeccion' ? renderProy5() : masTab === 'recurrentes' ? renderRecurrentes() : masTab === 'score' ? renderScore() : masTab === 'metas' ? renderMetas() : masTab === 'presupuesto' ? renderPresupuesto() : renderConfig()) +
     '</div>';
@@ -6179,6 +6927,139 @@ async function testNotificacion() {
     }
   }
 
+  
+  function modalNavMes() {
+    var selY = viewY;
+    var html = '<div class="mh"></div>';
+    html += '<div class="mt">Seleccionar periodo</div>';
+    // Year selector
+    html += '<div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:14px">';
+    html += '<button class="btn btn-s btn-sm" onclick="try{APP.navMesAnio(-1)}catch(e){}">\u25C0</button>';
+    html += '<div id="navmes_anio" style="font-size:18px;font-weight:800;color:var(--text);min-width:60px;text-align:center">' + selY + '</div>';
+    html += '<button class="btn btn-s btn-sm" onclick="try{APP.navMesAnio(1)}catch(e){}">\u25B6</button>';
+    html += '</div>';
+    // Month grid
+    html += '<div id="navmes_grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
+    html += renderNavMesGrid(selY);
+    html += '</div>';
+    html += '<button class="btn btn-s" style="margin-top:12px;width:100%" data-action="closeModal">Cancelar</button>';
+    openM(html);
+  }
+
+  var _navMesAnio = TY;
+  function navMesAnio(dir) {
+    _navMesAnio += dir;
+    var el = document.getElementById("navmes_anio");
+    if (el) el.textContent = _navMesAnio;
+    var grid = document.getElementById("navmes_grid");
+    if (grid) grid.innerHTML = renderNavMesGrid(_navMesAnio);
+  }
+
+  function renderNavMesGrid(y) {
+    var html = "";
+    for (var m = 0; m < 12; m++) {
+      var ing = ingMov(y, m);
+      var gas = gasMov(y, m);
+      var res = ing - gas;
+      var isActual = (y === TY && m === TM);
+      var isSelected = (y === viewY && m === viewM);
+      var hasDatos = (ing > 0 || gas > 0);
+      var bgColor = isSelected ? "rgba(0,200,150,0.2)" : isActual ? "rgba(0,200,150,0.08)" : "var(--s2)";
+      var border = isSelected ? "1px solid var(--green)" : isActual ? "1px solid rgba(0,200,150,0.3)" : "1px solid var(--s3)";
+      html += '<button onclick="try{APP.irAMes(' + y + ',' + m + ')}catch(e){}" style="';
+      html += "background:" + bgColor + ";border:" + border + ";border-radius:8px;padding:8px 4px;cursor:pointer;text-align:center";
+      html += '">'; 
+      html += '<div style="font-size:11px;font-weight:700;color:' + (isSelected ? "var(--green)" : "var(--text)") + '">' + MC[m] + '</div>';
+      if (hasDatos) {
+        html += '<div style="font-size:8px;color:var(--green);margin-top:2px">+' + fmtK(ing) + '</div>';
+        html += '<div style="font-size:8px;color:var(--red)">-' + fmtK(gas) + '</div>';
+        html += '<div style="font-size:8px;font-weight:700;color:' + (res >= 0 ? "var(--green)" : "var(--red)") + '">' + (res >= 0 ? "+" : "") + fmtK(res) + '</div>';
+      } else {
+        html += '<div style="font-size:8px;color:var(--dim);margin-top:2px">-</div>';
+      }
+      html += '</button>';
+    }
+    return html;
+  }
+
+  function irAMes(y, m) {
+    viewY = y;
+    viewM = m;
+    closeM();
+    render();
+  }
+
+  
+  // Auto-fetch inflacion y UVA desde ArgentinaDatos API
+  async function fetchInflacionAPI() {
+    try {
+      // 1. Fetch inflacion mensual
+      var resp = await fetch("https://api.argentinadatos.com/v1/finanzas/indices/inflacion");
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      var data = await resp.json();
+      var nuevos = 0;
+      data.forEach(function(item) {
+        // item = {fecha: "2026-03-01", valor: 2.5}
+        var parts = item.fecha.split("-");
+        var anio = +parts[0];
+        var mes = +parts[1] - 1; // 0-based
+        var valor = item.valor;
+        if (anio < 2024) return; // solo ultimos 2 anios
+        var existe = S.inflaciones.find(function(i) { return i.mes === mes && i.anio === anio; });
+        if (!existe) {
+          S.inflaciones.push({id: uid(), mes: mes, anio: anio, valor: valor, aplicada: true, auto: true});
+          nuevos++;
+        } else if (!existe.auto && Math.abs(existe.valor - valor) > 0.1) {
+          // Actualizar si el valor es diferente y fue cargado manual
+          existe.valor = valor;
+          existe.auto = true;
+          nuevos++;
+        }
+      });
+      if (nuevos > 0) {
+        save();
+        console.log("Inflacion actualizada: " + nuevos + " meses nuevos");
+      }
+    } catch(e) {
+      console.log("Error fetch inflacion:", e.message || e);
+    }
+
+    try {
+      // 2. Fetch valor UVA actual
+      var respUVA = await fetch("https://api.argentinadatos.com/v1/finanzas/indices/uva");
+      if (!respUVA.ok) throw new Error("HTTP UVA " + respUVA.status);
+      var uvaData = await respUVA.json();
+      if (uvaData && uvaData.length > 0) {
+        var ultimo = uvaData[uvaData.length - 1];
+        var uvaAnterior = S.config.valorUVA || 0;
+        S.config.valorUVA = ultimo.valor;
+        S.config.uvaFecha = ultimo.fecha;
+        if (uvaAnterior !== ultimo.valor) {
+          save();
+          console.log("UVA actualizado: $" + ultimo.valor + " (fecha: " + ultimo.fecha + ")");
+        }
+      }
+    } catch(e) {
+      console.log("Error fetch UVA:", e.message || e);
+    }
+
+    try {
+      // 3. Fetch dolar blue
+      var respDolar = await fetch("https://api.argentinadatos.com/v1/cotizaciones/dolares/blue/ultimo");
+      if (!respDolar.ok) throw new Error("HTTP dolar " + respDolar.status);
+      var dolarData = await respDolar.json();
+      if (dolarData && dolarData.venta) {
+        S.config.dolarBlue = dolarData.venta;
+        S.config.dolarBlueCompra = dolarData.compra;
+        S.config.dolarBlueFecha = dolarData.fecha || new Date().toISOString().slice(0,10);
+        save();
+        console.log("Dolar blue: $" + dolarData.venta + " / $" + dolarData.compra);
+      }
+    } catch(e) {
+      console.log("Error fetch dolar:", e.message || e);
+    }
+  }
+
   function checkRecurrentesPendientes() {
     if (!S.recurrentes || !S.recurrentes.length) return;
     var hoy = new Date();
@@ -6305,33 +7186,55 @@ async function testNotificacion() {
     }
 
     // Inflation card
-    var aplics = S.inflaciones.filter(function(i){return i.aplicada;});
-    var pends = S.inflaciones.filter(function(i){return !i.aplicada;});
-    var acumApl = aplics.reduce(function(s,i){return s*(1+i.valor/100);},1);
-    var acumPend = pends.reduce(function(s,i){return s*(1+i.valor/100);},1);
-    var acumTotal = aplics.concat(pends).reduce(function(s,i){return s*(1+i.valor/100);},1);
-    html += '<div class="card c-y"><div class="sec">Inflacion mes a mes (INDEC)</div>';
-    html += '<a href="https://www.indec.gob.ar/indec/web/Nivel4-Tema-3-5-31" target="_blank" rel="noopener" style="display:block;padding:10px;background:var(--s3);border:1px solid var(--border);border-radius:8px;text-align:center;color:var(--blue);font-size:12px;font-weight:700;text-decoration:none;margin-bottom:10px">Ver IPC oficial en INDEC \u2192</a>';
+    // Calcular inflacion ultimos 12 meses y año en curso
+    var hoyInfl = new Date();
+    var mesHoy = hoyInfl.getMonth();
+    var anioHoy = hoyInfl.getFullYear();
+    var sorted = S.inflaciones.slice().sort(function(a,b){return b.anio-a.anio||b.mes-a.mes;});
+    var ult12 = sorted.filter(function(i) {
+      var mesesAtras = (anioHoy - i.anio) * 12 + (mesHoy - i.mes);
+      return mesesAtras >= 0 && mesesAtras < 12;
+    });
+    var acum12 = ult12.reduce(function(s,i){return s*(1+i.valor/100);},1);
+    var anioActInfl = sorted.filter(function(i){ return i.anio === anioHoy; });
+    var acumAnio = anioActInfl.reduce(function(s,i){return s*(1+i.valor/100);},1);
+    var ultimoMes = sorted.length > 0 ? sorted[0] : null;
+
+    html += '<div class="card c-y"><div class="sec">Inflacion (INDEC - Automatica)</div>';
     html += '<div class="g3" style="margin-bottom:10px">';
     html += '<div style="background:var(--red-glow);border:1px solid rgba(240,68,56,.2);border-radius:var(--rs);padding:9px;text-align:center">';
-    html += '<div class="lbl" style="margin-bottom:2px">Acumulada</div>';
-    html += '<div style="font-size:18px;font-weight:900;font-family:monospace;color:var(--red)">+' + ((acumApl-1)*100).toFixed(1) + '%</div>';
-    html += '<div style="font-size:9px;color:var(--dim);margin-top:2px">' + aplics.length + ' meses aplicados</div></div>';
+    html += '<div class="lbl" style="margin-bottom:2px">Interanual</div>';
+    html += '<div style="font-size:18px;font-weight:900;font-family:monospace;color:var(--red)">+' + ((acum12-1)*100).toFixed(1) + '%</div>';
+    html += '<div style="font-size:9px;color:var(--dim);margin-top:2px">Ultimos 12 meses</div></div>';
     html += '<div style="background:var(--yellow-glow);border:1px solid rgba(245,166,35,.25);border-radius:var(--rs);padding:9px;text-align:center">';
-    html += '<div class="lbl" style="margin-bottom:2px">Pendiente</div>';
-    html += '<div style="font-size:18px;font-weight:900;font-family:monospace;color:var(--yellow)">+' + ((acumPend-1)*100).toFixed(1) + '%</div>';
-    html += '<div style="font-size:9px;color:var(--dim);margin-top:2px">' + pends.length + ' meses estimados</div></div>';
+    html += '<div class="lbl" style="margin-bottom:2px">' + anioHoy + '</div>';
+    html += '<div style="font-size:18px;font-weight:900;font-family:monospace;color:var(--yellow)">+' + ((acumAnio-1)*100).toFixed(1) + '%</div>';
+    html += '<div style="font-size:9px;color:var(--dim);margin-top:2px">' + anioActInfl.length + ' meses</div></div>';
     html += '<div style="background:var(--purple-glow);border:1px solid rgba(139,92,246,.25);border-radius:var(--rs);padding:9px;text-align:center">';
-    html += '<div class="lbl" style="margin-bottom:2px">Total</div>';
-    html += '<div style="font-size:18px;font-weight:900;font-family:monospace;color:var(--purple)">+' + ((acumTotal-1)*100).toFixed(1) + '%</div>';
-    html += '<div style="font-size:9px;color:var(--dim);margin-top:2px">acum. periodo</div></div>';
+    html += '<div class="lbl" style="margin-bottom:2px">Ultimo</div>';
+    if (ultimoMes) {
+      html += '<div style="font-size:18px;font-weight:900;font-family:monospace;color:var(--purple)">+' + ultimoMes.valor.toFixed(1) + '%</div>';
+      html += '<div style="font-size:9px;color:var(--dim);margin-top:2px">' + MC[ultimoMes.mes] + ' ' + ultimoMes.anio + '</div>';
+    } else {
+      html += '<div style="font-size:18px;font-weight:900;font-family:monospace;color:var(--dim)">--</div>';
+    }
+    html += '</div></div>';
+
+    html += '<div onclick="var el=document.getElementById(\x27infl_list\x27);if(el){el.style.display=el.style.display===\x27none\x27?\x27block\x27:\x27none\x27;this.querySelector(\x27.hist-arrow\x27).textContent=el.style.display===\x27none\x27?\x27\u25B6\x27:\x27\u25BC\x27;}" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:8px 0;border-top:1px solid var(--s3)">';
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text)">\u{1F4CB} Historial IPC (' + sorted.length + ' meses)</div>';
+    html += '<span class="hist-arrow" style="font-size:10px;color:var(--dim)">\u25B6</span>';
     html += '</div>';
-    html += '<div style="font-size:9px;color:var(--dim);margin-bottom:8px">Carga la inflacion mensual oficial. Afecta proyecciones y cuota UVA.</div>';
-    html += S.inflaciones.slice().sort(function(a,b){return b.anio-a.anio||b.mes-a.mes;}).map(function(inf){
-      return '<div class="item-row"><div><div style="font-size:11px;font-weight:700">'+MC[inf.mes]+' '+inf.anio+'</div><div style="font-size:9px;color:var(--dim)">'+(inf.aplicada?'OK Aplicada':'? Pendiente')+'</div></div><div class="item-actions"><span class="pill pill-y">'+inf.valor.toFixed(1)+'%</span><button class="edit-btn" onclick="try{APP.editInfl(\''+inf.id+'\')}catch(e){console.log(e)}">?</button><button class="del-btn" data-del="infl" data-id="'+inf.id+'">x</button></div></div>';
-    }).join('');
+    html += '<div id="infl_list" style="display:none;max-height:250px;overflow-y:auto">';
+    sorted.forEach(function(inf) {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--s2);font-size:10px">';
+      html += '<div><span style="font-weight:700;color:var(--text)">' + MC[inf.mes] + ' ' + inf.anio + '</span>';
+      html += '<span style="color:var(--dim);margin-left:6px;font-size:8px">' + (inf.auto ? 'Auto' : 'Manual') + '</span></div>';
+      html += '<span class="pill pill-y">' + inf.valor.toFixed(1) + '%</span>';
+      html += '</div>';
+    });
+    html += '</div>';
     html += '<div style="display:flex;gap:7px;margin-top:8px">';
-    html += '<button class="btn btn-s btn-sm" style="flex:1" data-action="modalInfl">+ Agregar</button>';
+    html += '<button class="btn btn-s btn-sm" style="flex:1" data-action="modalInfl">+ Manual</button>';
     html += '<button class="btn btn-p btn-sm" style="flex:1" data-action="buscarInflIA">Buscar con IA</button>';
     html += '</div>';
     html += '<div id="infl_ia_result" style="display:none"></div>';
@@ -7135,7 +8038,13 @@ async function testNotificacion() {
         html += '<div style="font-size:20px">' + (e.tipo==='income'||e.tipo==='info'?'\uD83D\uDCE5':'\uD83D\uDCE4') + '</div>';
         html += '<div style="flex:1"><div style="font-size:12px;font-weight:700">' + e.nombre + '</div>';
         if (e.monto) html += '<div style="font-size:11px;color:' + (e.tipo==='income'||e.tipo==='info'?'var(--green)':'var(--red)') + ';font-family:monospace;font-weight:700">' + (e.tipo==='income'||e.tipo==='info'?'+':'-') + fmt(e.monto) + '</div>';
-        html += '</div></div>';
+        if (e.tipo === 'pay') {
+          html += '<div style="display:flex;gap:6px;margin-top:7px">';
+          html += '<button style="flex:1;background:var(--green);border:none;border-radius:8px;color:#000;font-size:11px;font-weight:800;padding:7px;cursor:pointer;font-family:inherit" onclick="APP.cerrarPopupDiario();APP.nav(\'cuentas\');">\u2705 Confirmar</button>';
+          html += '<button style="flex:1;background:var(--s3);border:1px solid var(--border);border-radius:8px;color:var(--txt);font-size:11px;font-weight:700;padding:7px;cursor:pointer;font-family:inherit" onclick="APP.cerrarPopupDiario();APP.nav(\'agenda\');">\uD83D\uDCCB Agenda</button>';
+          html += '</div>';
+        }
+        html += '</div>';
       });
     }
 
@@ -7163,6 +8072,9 @@ async function testNotificacion() {
     document.getElementById('DAILY_POPUP').style.display = 'flex';
   }
 
+  function abrirPopupDiario() {
+    document.getElementById('DAILY_POPUP').style.display = 'flex';
+  }
   function cerrarPopupDiario() {
     document.getElementById('DAILY_POPUP').style.display = 'none';
   }
@@ -7175,7 +8087,7 @@ async function testNotificacion() {
     var ingresos = evHoy.filter(function(e){ return e.tipo === 'income'; });
     var totalPagosHoy = pagos.reduce(function(s,e){ return s+(e.monto||0); }, 0);
     var totalIngHoy = ingresos.reduce(function(s,e){ return s+(e.monto||0); }, 0);
-    var html = '<div style="background:var(--red-glow);border:1px solid rgba(240,68,56,.4);border-radius:var(--rs);padding:11px 13px;margin-bottom:9px;cursor:pointer" data-action="abrirPopupDiario">';
+    var html = '<div style="background:var(--red-glow);border:1px solid rgba(240,68,56,.4);border-radius:var(--rs);padding:11px 13px;margin-bottom:9px;cursor:pointer" onclick="document.getElementById(\'DAILY_POPUP\').style.display=\'flex\'">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
     html += '<div style="font-size:11px;font-weight:800;color:var(--red)">HOY TENES ' + evHoy.length + ' EVENTO' + (evHoy.length!==1?'S':'') + '</div>';
     html += '<div style="font-size:9px;color:var(--dim)">Toca para ver</div>';
@@ -7207,17 +8119,17 @@ async function testNotificacion() {
 
   // Public API
   return {
-    nav: nav, openFab: openFab, closeMbd: closeMbd, closeM: closeM, analizarTC: analizarTC, modalAjusteSaldo: modalAjusteSaldo, confirmarAjusteSaldo: confirmarAjusteSaldo, modalAddMeta: modalAddMeta, saveMeta: saveMeta, editMeta: editMeta, addPresupuesto: addPresupuesto, exportarBackup: exportarBackup, importarBackup: importarBackup, sincronizarCedears: sincronizarCedears, configurarPIN: configurarPIN, cambiarPIN: cambiarPIN, borrarPIN: borrarPIN, bloquearAhora: bloquearAhora, reprogramarNotifs: reprogramarNotifs, activarHuella: activarHuella, detalleCategoria: detalleCategoria, setPresupModal: setPresupModal, addRecurrente: addRecurrente, modalConfirmRec: modalConfirmRec, confirmarRecPago: confirmarRecPago, omitirRec: omitirRec, testNotificacion: testNotificacion, programarNotificacionesRec: programarNotificacionesRec, checkRecurrentesPendientes: checkRecurrentesPendientes, setPresupModal: setPresupModal, borrarHuella: borrarHuella, toggleAnalisis: toggleAnalisis, setTema: setTema, irMes: irMes, moveAccount: moveAccount, delCatTC: delCatTC, modalAddCatTC: modalAddCatTC, modalEditCatTC: modalEditCatTC, saveEditCatTC: saveEditCatTC, saveNewCatTC: saveNewCatTC, exportarPDF: exportarPDF, fabIngreso: fabIngreso, fabGasto: fabGasto, fabTransferencia: fabTransferencia, fabGastoTC: fabGastoTC, onDescChange: onDescChange, toggleUVAFields: toggleUVAFields, calcCuotaUVAPreview: calcCuotaUVAPreview, calcAdelantoUVA: calcAdelantoUVA, toggleIntell: toggleIntell, toggleCuotas: toggleCuotas, modalReabrirTC: modalReabrirTC, confirmarReabrirTC: confirmarReabrirTC, calcTC: calcTC, calcTCPreview: calcTCPreview, modalEditCuotaTC: modalEditCuotaTC, saveEditCuotaTC: saveEditCuotaTC, previewEditTC: previewEditTC,
+    nav: nav, openFab: openFab, closeMbd: closeMbd, closeM: closeM, analizarTC: analizarTC, modalAjusteSaldo: modalAjusteSaldo, confirmarAjusteSaldo: confirmarAjusteSaldo, modalAddMeta: modalAddMeta, saveMeta: saveMeta, editMeta: editMeta, addPresupuesto: addPresupuesto, exportarBackup: exportarBackup, importarBackup: importarBackup, importarDesdeGmail: importarDesdeGmail, cerrarModalGmail: cerrarModalGmail, confirmarImportGmail: confirmarImportGmail, sincronizarCedears: sincronizarCedears, configurarPIN: configurarPIN, cambiarPIN: cambiarPIN, borrarPIN: borrarPIN, bloquearAhora: bloquearAhora, reprogramarNotifs: reprogramarNotifs, activarHuella: activarHuella, detalleCategoria: detalleCategoria, setPresupModal: setPresupModal, addRecurrente: addRecurrente, modalConfirmRec: modalConfirmRec, confirmarRecPago: confirmarRecPago, omitirRec: omitirRec, testNotificacion: testNotificacion, fetchInflacionAPI: fetchInflacionAPI, modalNavMes: modalNavMes, navMesAnio: navMesAnio, irAMes: irAMes, programarNotificacionesRec: programarNotificacionesRec, checkRecurrentesPendientes: checkRecurrentesPendientes, setPresupModal: setPresupModal, borrarHuella: borrarHuella, toggleAnalisis: toggleAnalisis, setTema: setTema, irMes: irMes, moveAccount: moveAccount, delCatTC: delCatTC, modalAddCatTC: modalAddCatTC, modalEditCatTC: modalEditCatTC, saveEditCatTC: saveEditCatTC, saveNewCatTC: saveNewCatTC, exportarPDF: exportarPDF, fabIngreso: fabIngreso, fabGasto: fabGasto, fabTransferencia: fabTransferencia, fabGastoTC: fabGastoTC, onDescChange: onDescChange, toggleUVAFields: toggleUVAFields, calcCuotaUVAPreview: calcCuotaUVAPreview, calcAdelantoUVA: calcAdelantoUVA, toggleIntell: toggleIntell, toggleCuotas: toggleCuotas, modalReabrirTC: modalReabrirTC, confirmarReabrirTC: confirmarReabrirTC, calcTC: calcTC, calcTCPreview: calcTCPreview, modalEditCuotaTC: modalEditCuotaTC, saveEditCuotaTC: saveEditCuotaTC, previewEditTC: previewEditTC, sugerirPeriodoTC: sugerirPeriodoTC, simularCompra: simularCompra,
     del: del, render: render, toggleTheme: toggleTheme, exportCSV: exportCSV,
     inicioNav: inicioNav, agNav: agNav, tcNav: tcNav, toggleProy5: toggleProy5,
-    setMovFiltro: setMovFiltro, setMovCuenta: setMovCuenta, setMovBusq: setMovBusq,
+    setMovFiltro: setMovFiltro, setMovCuenta: setMovCuenta, setMovBusq: setMovBusq, setMovCat: setMovCat, setMovCatIdx: setMovCatIdx,
     setMasTab: setMasTab, updCuentaSaldo: updCuentaSaldo,
     actualizarSimDeudas: actualizarSimDeudas,
     // Modals
     modalMov: modalMov, modalTC: modalTC, modalAddCuenta: modalAddCuenta, modalTransferencia: modalTransferencia, confirmarTransferencia: confirmarTransferencia, previewTransferencia: previewTransferencia, modalAjusteSaldo: modalAjusteSaldo, confirmarAjusteSaldo: confirmarAjusteSaldo,
     modalEditCuenta: modalEditCuenta, modalAddPrest: modalAddPrest,
     modalPagarPrest: modalPagarPrest,
-    modalAddTarjeta: modalAddTarjeta, modalEditTarjeta: modalEditTarjeta, saveTarjeta: saveTarjeta, confirmarPagarPrest: confirmarPagarPrest,
+    modalAddTarjeta: modalAddTarjeta, modalEditTarjeta: modalEditTarjeta, saveTarjeta: saveTarjeta, confirmarPagarPrest: confirmarPagarPrest, revertirPagoPrest: revertirPagoPrest,
     modalEditPrest: modalEditPrest, modalSimUVA: modalSimUVA, modalSimNuevo: modalSimNuevo,
     modalAddC: modalAddC, modalEditC: modalEditC, modalCompraC: modalCompraC,
     modalEvento: modalEvento, modalInfl: modalInfl, modalAddComp: modalAddComp, modalEditComp: modalEditComp,
@@ -7231,7 +8143,7 @@ async function testNotificacion() {
     pgHistorial: pgHistorial, modalCerrarMes: modalCerrarMes, confirmarCierreMes: confirmarCierreMes,
     saveComp: saveComp, updComp: updComp,
     calcSim: calcSim, showDay: showDay, activarAlertas: activarAlertas,
-    showDailyPopup: showDailyPopup, cerrarPopupDiario: cerrarPopupDiario, getBannerHoyHTML: getBannerHoyHTML,
+    showDailyPopup: showDailyPopup, cerrarPopupDiario: cerrarPopupDiario, abrirPopupDiario: abrirPopupDiario, abrirInputIA: abrirInputIA, procesarInputIA: procesarInputIA, confirmarInputIA: confirmarInputIA, getBannerHoyHTML: getBannerHoyHTML,
     modalPagarTC: modalPagarTC, switchPayTab: switchPayTab, calcResto: calcResto, confirmarPagoTC: confirmarPagoTC,
     updMovCats: updMovCats, resetApp: resetApp,
     switchCatTab: switchCatTab, modalAddCat: modalAddCat, saveNewCat: saveNewCat,
@@ -7324,6 +8236,7 @@ document.addEventListener('click', function(e) {
   if (action === 'modalInfl') { APP.modalInfl(); return; }
   if (action === 'modalSimNuevo') { APP.modalSimNuevo(); return; }
   if (action === 'exportarBackup') { APP.exportarBackup(); return; }
+  if (action === 'importarGmail') { APP.importarDesdeGmail(); return; }
   if (action === 'resetApp') { APP.resetApp(); return; }
   if (action === 'saveCuenta') { APP.saveCuenta(); return; }
   if (action === 'saveEvento') { APP.saveEvento(); return; }
@@ -7339,6 +8252,7 @@ document.addEventListener('click', function(e) {
   if (action === 'navTarjetas') { APP.nav('tarjetas'); return; }
   if (action === 'navPrestamos') { APP.nav('prestamos'); return; }
   if (action === 'navMas') { APP.nav('mas'); return; }
+  if (action === 'navConfig') { APP.nav('config'); return; }
   if (action === 'navHistorial') { APP.nav('historial'); return; }
   if (action === 'toggleTheme') { APP.toggleTheme(); return; }
   if (action === 'exportCSV') { APP.exportCSV(); return; }
@@ -7388,7 +8302,7 @@ document.addEventListener('click', function(e) {
   if (action === 'saveEditCat') { APP.saveEditCat(btn.getAttribute('data-tipo'), btn.getAttribute('data-old')); return; }
   if (action === 'delCat') { APP.delCat(btn.getAttribute('data-tipo'), btn.getAttribute('data-cat')); return; }
   if (action === 'cerrarPopupDiario') { APP.cerrarPopupDiario(); return; }
-  if (action === 'abrirPopupDiario') { document.getElementById('DAILY_POPUP').style.display='flex'; return; }
+  if (action === 'abrirPopupDiario') { APP.abrirPopupDiario(); return; }
   if (action === 'modalCerrarMes') { APP.modalCerrarMes(); return; }
   if (action === 'confirmarCierreMes') { APP.confirmarCierreMes(); return; }
   if (action === 'confirmarInflIA') { APP.confirmarInflIA(btn.getAttribute('data-mes'), btn.getAttribute('data-anio'), btn.getAttribute('data-valor')); return; }
