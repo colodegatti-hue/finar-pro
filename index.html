@@ -907,9 +907,9 @@ function parsearEmailConsumo(msg) {
 
   // Extraer comercio - formato Payway: "establecimiento NOMBRE_COMERCIO ,"
   var desc = 'Consumo importado';
-  var comercioM = texto.match(/establecimiento\s+([A-Z0-9*][A-Z0-9* &._-]{2,40?})\s*[,\.]/i);
+  var comercioM = texto.match(/establecimiento\s+([A-Z0-9*][A-Z0-9* &._\-]{2,60})\s*[,\.]/i);
   if (comercioM) {
-    desc = comercioM[1].trim().replace(/\s+/g,' ');
+    desc = comercioM[1].trim().replace(/\s+/g,' ').replace(/^el establecimiento\s*/i,'').trim();
   } else {
     // Fallback: buscar patron generico
     var comercioM2 = texto.match(/(?:en|comercio)[:\s]+([A-Z][^\n.,]{3,40})/i);
