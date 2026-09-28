@@ -786,7 +786,7 @@ async function importarDesdeGmail() {
   }
   toast('Buscando emails de consumos...');
   try {
-    var query = '(consumo OR debito OR "alerta de compra" OR "notificacion de compra") newer_than:30d';
+    var query = '("novedades de tus transacciones" OR "aviso de consumo" OR "alerta de compra" OR consumo OR debito OR transaccion) newer_than:60d';
     var resp = await fetch(
       'https://gmail.googleapis.com/gmail/v1/users/me/messages?q=' + encodeURIComponent(query) + '&maxResults=50',
       {headers: {'Authorization': 'Bearer ' + token}}
@@ -851,8 +851,8 @@ function parsearEmailConsumo(msg) {
   var fISO = fecha.getFullYear()+'-'+String(fecha.getMonth()+1).padStart(2,'0')+'-'+String(fecha.getDate()).padStart(2,'0');
 
   // Solo procesar emails que parecen alertas de consumo
-  var kw = ['consumo','compra','debito','pago','alerta','transaccion','notificacion'];
-  var src = ['banco','visa','mastercard','macro','galicia','santander','naranja','bbva','icbc','nacion','provincia'];
+  var kw = ['consumo','compra','debito','pago','alerta','transaccion','notificacion','novedades'];
+  var src = ['banco','visa','mastercard','macro','galicia','santander','naranja','bbva','icbc','nacion','provincia','infomistarjetas','alertas'];
   var esAlerta = kw.some(function(k){return subj.indexOf(k)!==-1;}) || src.some(function(s){return from.indexOf(s)!==-1;});
   if (!esAlerta) return null;
 
@@ -875,15 +875,19 @@ function parsearEmailConsumo(msg) {
   ];
   for (var pi=0;pi<pats.length;pi++) {
     var m=texto.match(pats[pi]);
-    if (m) { var n=parseFloat(m[1].replace(/\./g,'').replace(',','.')); if(n>=100&&n<=50000000){monto=n;break;} }
+    if (m) { var n=parseFloat(m[1].replace(/\./g,'').replace(',','.')); if(n>=10&&n<=50000000){monto=n;break;} }
   }
   if (monto===0) return null;
 
   // Descripcion
   var desc = 'Consumo importado';
-  var dm = texto.match(/(?:en|comercio|establecimiento)[\s:]+([A-Z][^\n.]{2,35})/);
-  if (dm) desc = dm[1].trim().substring(0,40);
-  else if (hdrs['subject']) desc = hdrs['subject'].replace(/re:|fwd:|alerta|notif/gi,'').trim().substring(0,40);
+  // Infomistarjetas: buscar nombre de comercio
+  var dmComercio = texto.match(/(?:en|comercio|establecimiento|COMERCIO)[\s:]+([A-Za-z0-9][^\n.]{2,40})/i);
+  var dmNombreCC = texto.match(/(?:Nombre|Descripci.n)[:\s]+([A-Za-z0-9][^\n]{3,40})/i);
+  if (dmComercio) desc = dmComercio[1].trim().substring(0,40);
+  else if (dmNombreCC) desc = dmNombreCC[1].trim().substring(0,40);
+  else if (hdrs['subject']) desc = hdrs['subject'].replace(/re:|fwd:|alerta|notif|novedades de tus transacciones/gi,'').trim().substring(0,40)||(desc);
+  if (!desc || desc.length < 3) desc = 'Consumo importado';
 
   return { gmailMsgId:msg.id, fecha:fISO, desc:desc, monto:monto, tipo:'gasto',
     cat: esTC?'Tarjeta de credito':'Gastos',
