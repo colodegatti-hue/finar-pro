@@ -776,6 +776,12 @@ async function checkGmailCallback() {
   }
 }
 
+function gmailToast(msg) {
+  if (typeof toast === "function") { toast(msg); }
+  else if (typeof showAlert === "function") { showAlert(msg); }
+  else { console.log("[Gmail]", msg); }
+}
+
 async function importarDesdeGmail() {
   var token = googleAccessToken || localStorage.getItem('finar_google_token') || '';
   if (!token) {
@@ -784,7 +790,7 @@ async function importarDesdeGmail() {
     }
     return;
   }
-  toast('Buscando emails de consumos...');
+  gmailToast('Buscando emails de consumos...');
   try {
     var query = '("novedades de tus transacciones" OR "aviso de consumo" OR "alerta de compra" OR consumo OR debito OR transaccion) newer_than:60d';
     var resp = await fetch(
@@ -802,7 +808,7 @@ async function importarDesdeGmail() {
       showAlert('No se encontraron emails de consumos en los ultimos 30 dias.');
       return;
     }
-    toast('Analizando ' + data.messages.length + ' emails...');
+    gmailToast('Analizando ' + data.messages.length + ' emails...');
     var txs = [];
     var msgs = data.messages.slice(0,30);
     for (var i=0; i<msgs.length; i++) {
@@ -898,7 +904,7 @@ function parsearEmailConsumo(msg) {
 function mostrarPreviewGmail(txs) {
   var yaIds = S.movimientos.filter(function(m){return m.gmailMsgId;}).map(function(m){return m.gmailMsgId;});
   var nuevas = txs.filter(function(t){return yaIds.indexOf(t.gmailMsgId)===-1;});
-  if (nuevas.length===0) { toast('Todos los consumos ya fueron importados antes'); return; }
+  if (nuevas.length===0) { gmailToast('Todos los consumos ya fueron importados antes'); return; }
   var html = '<div class="modal-overlay" id="modal_gmail" onclick="if(event.target===this)APP.cerrarModalGmail()">' +
     '<div class="modal" style="max-width:360px;max-height:80vh;overflow-y:auto">' +
     '<div class="modal-title">&#x1F4E5; Importar desde Gmail</div>' +
@@ -938,8 +944,8 @@ function confirmarImportGmail() {
     }
   });
   cerrarModalGmail();
-  if (count>0) { save(); renderMain(); toast(count+' consumo(s) importados OK'); }
-  else toast('No se importo ningun consumo');
+  if (count>0) { save(); renderMain(); gmailToast(count+' consumo(s) importados OK'); }
+  else gmailToast('No se importo ningun consumo');
 }
 
 // ── Guardar en Supabase (async) ───────────────────────────────────────────────
