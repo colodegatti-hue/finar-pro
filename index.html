@@ -8145,7 +8145,50 @@ async function testNotificacion() {
     document.getElementById('DAILY_POPUP').style.display = 'flex';
   }
 
+  function buildDailyPopupHTML() {
+    var evHoy = proxEvs().filter(function(e){ return dHasta(e.dia) === 0; });
+    var evManana = proxEvs().filter(function(e){ return dHasta(e.dia) === 1; });
+    var evProx = proxEvs().filter(function(e){ return dHasta(e.dia) >= 2 && dHasta(e.dia) <= 7; });
+    var html = '';
+    if (evHoy.length) {
+      html += '<div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">HOY - ' + TD + ' de ' + MESES[TM] + '</div>';
+      evHoy.forEach(function(e) {
+        html += '<div style="display:flex;align-items:center;gap:10px;padding:10px;background:' + (e.tipo==='income'||e.tipo==='info'?'var(--green-glow)':'var(--red-glow)') + ';border:1px solid ' + (e.tipo==='income'||e.tipo==='info'?'rgba(0,200,150,.3)':'rgba(240,68,56,.3)') + ';border-radius:10px;margin-bottom:7px">';
+        html += '<div style="font-size:20px">' + (e.tipo==='income'||e.tipo==='info'?'\uD83D\uDCE5':'\uD83D\uDCE4') + '</div>';
+        html += '<div style="flex:1"><div style="font-size:12px;font-weight:700">' + e.nombre + '</div>';
+        if (e.monto) html += '<div style="font-size:11px;color:' + (e.tipo==='income'||e.tipo==='info'?'var(--green)':'var(--red)') + ';font-family:monospace;font-weight:700">' + (e.tipo==='income'||e.tipo==='info'?'+':'-') + fmt(e.monto) + '</div>';
+        if (e.tipo === 'pay') {
+          html += '<div style="display:flex;gap:6px;margin-top:7px">';
+          html += '<button style="flex:1;background:var(--green);border:none;border-radius:8px;color:#000;font-size:11px;font-weight:800;padding:7px;cursor:pointer;font-family:inherit" onclick="APP.cerrarPopupDiario();APP.nav(\'cuentas\');">\u2705 Confirmar</button>';
+          html += '<button style="flex:1;background:var(--s3);border:1px solid var(--border);border-radius:8px;color:var(--txt);font-size:11px;font-weight:700;padding:7px;cursor:pointer;font-family:inherit" onclick="APP.cerrarPopupDiario();APP.nav(\'agenda\');">\uD83D\uDCCB Agenda</button>';
+          html += '</div>';
+        }
+        html += '</div>';
+      });
+    }
+    if (evManana.length) {
+      html += '<div style="font-size:10px;font-weight:700;color:var(--yellow);text-transform:uppercase;letter-spacing:1px;margin:10px 0 8px">MANANA</div>';
+      evManana.forEach(function(e) {
+        html += '<div style="display:flex;align-items:center;gap:10px;padding:9px;background:var(--yellow-glow);border:1px solid rgba(245,166,35,.25);border-radius:10px;margin-bottom:7px">';
+        html += '<div style="font-size:18px">' + (e.tipo==='income'?'\uD83D\uDCE5':'\uD83D\uDCE4') + '</div>';
+        html += '<div style="flex:1"><div style="font-size:11px;font-weight:700">' + e.nombre + '</div>';
+        if (e.monto) html += '<div style="font-size:10px;color:var(--yellow);font-family:monospace;font-weight:700">' + (e.tipo==='income'?'+':'-') + fmt(e.monto) + '</div>';
+        html += '</div></div>';
+      });
+    }
+    if (evProx.length) {
+      html += '<div style="font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin:10px 0 8px">PROXIMOS 7 DIAS</div>';
+      evProx.slice(0,4).forEach(function(e) {
+        html += '<div class="row"><span class="rl">' + fmtDate(e.dia) + ' - ' + e.nombre + '</span>';
+        if (e.monto) html += '<span class="rv" style="color:' + (e.tipo==='income'||e.tipo==='info'?'var(--green)':'var(--red)') + '">' + (e.tipo==='income'||e.tipo==='info'?'+':'-') + fmt(e.monto) + '</span>';
+        html += '</div>';
+      });
+    }
+    return html;
+  }
+
   function abrirPopupDiario() {
+    document.getElementById('DAILY_POPUP_BODY').innerHTML = buildDailyPopupHTML();
     document.getElementById('DAILY_POPUP').style.display = 'flex';
   }
   function cerrarPopupDiario() {
@@ -8160,7 +8203,7 @@ async function testNotificacion() {
     var ingresos = evHoy.filter(function(e){ return e.tipo === 'income'; });
     var totalPagosHoy = pagos.reduce(function(s,e){ return s+(e.monto||0); }, 0);
     var totalIngHoy = ingresos.reduce(function(s,e){ return s+(e.monto||0); }, 0);
-    var html = '<div style="background:var(--red-glow);border:1px solid rgba(240,68,56,.4);border-radius:var(--rs);padding:11px 13px;margin-bottom:9px;cursor:pointer" onclick="document.getElementById(\'DAILY_POPUP\').style.display=\'flex\'">';
+    var html = '<div style="background:var(--red-glow);border:1px solid rgba(240,68,56,.4);border-radius:var(--rs);padding:11px 13px;margin-bottom:9px;cursor:pointer" onclick="APP.abrirPopupDiario()">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
     html += '<div style="font-size:11px;font-weight:800;color:var(--red)">HOY TENES ' + evHoy.length + ' EVENTO' + (evHoy.length!==1?'S':'') + '</div>';
     html += '<div style="font-size:9px;color:var(--dim)">Toca para ver</div>';
