@@ -1092,47 +1092,14 @@ function defState() {
       uvaValor: 0,
       lastSync: null
     },
-    cuentas: [
-      {id:'a1', nombre:'Banco Nación ARS', tipo:'banco', moneda:'ARS', saldo:850000, color:'#3D8EF0', icon:'\uD83C\uDFE6'},
-      {id:'a2', nombre:'Caja Ahorro USD', tipo:'ahorro', moneda:'USD', saldo:1200, color:'#00C896', icon:'\uD83C\uDDFA\uD83C\uDDF8'},
-      {id:'a3', nombre:'IOL Inversiones', tipo:'inversion', moneda:'ARS', saldo:450000, color:'#8B5CF6', icon:'\uD83D\uDCC8'},
-      {id:'a4', nombre:'Mercado Pago', tipo:'virtual', moneda:'ARS', saldo:45000, color:'#14B8A6', icon:'\uD83D\uDCF1'}
-    ],
-    inflaciones: [
-      {id:'i1', mes: TM > 0 ? TM - 1 : 11, anio: TM > 0 ? TY : TY - 1, valor: 3.8, aplicada: true},
-      {id:'i2', mes: TM, anio: TY, valor: 4.0, aplicada: false}
-    ],
-    prestamos: [
-      {id:'p1', nombre:'Hipoteca UVA', tipo:'uva', cuota:407890, cuotaN:18, cuotaTotal:360, diaPago:10, cantidadUVAs:350.50, capitalUVAs:280.00, tasaUVA:4.25},
-      {id:'p2', nombre:'Préstamo Personal 1', tipo:'personal', cuota:5435.61, cuotaN:49, cuotaTotal:60, diaPago:28},
-      {id:'p3', nombre:'Préstamo Personal 2', tipo:'personal', cuota:4972.49, cuotaN:43, cuotaTotal:60, diaPago:28},
-      {id:'p4', nombre:'Préstamo Personal 3', tipo:'personal', cuota:499278.87, cuotaN:4, cuotaTotal:60, diaPago:28}
-    ],
-    compromisos: [
-      {id:'cf1', nombre:'Seguro auto', monto:85000, diaMes:5, tipo:'gasto'},
-      {id:'cf2', nombre:'Cobro alquiler', monto:320000, diaMes:15, tipo:'ingreso'}
-    ],
-    tarjetas: [
-      {id:'t1', nombre:'Visa Nación', color:'#3D8EF0', cierreRegla:'2do_jueves', venceDia:28, limite:500000},
-      {id:'t2', nombre:'Mastercard Nación', color:'#8B5CF6', cierreRegla:'penultimo_jueves', venceRegla:'1er_miercoles', limite:400000}
-    ],
+    cuentas: [],
+    inflaciones: [],
+    prestamos: [],
+    compromisos: [],
+    tarjetas: [],
     gastosTC: [],
-    cedears: [
-      {id:'c1', ticker:'AAPL', nombre:'Apple Inc.', cant:10, precioCompra:18500, precioActual:21000, aporteMensual:50000, color:'#3D8EF0'},
-      {id:'c2', ticker:'KO', nombre:'Coca-Cola Co.', cant:20, precioCompra:6800, precioActual:7200, aporteMensual:30000, color:'#00C896'},
-      {id:'c3', ticker:'AXP', nombre:'American Express', cant:8, precioCompra:32000, precioActual:35500, aporteMensual:40000, color:'#F5A623'},
-      {id:'c4', ticker:'SPY', nombre:'S&P 500 ETF', cant:5, precioCompra:85000, precioActual:91000, aporteMensual:80000, color:'#8B5CF6'}
-    ],
-    movimientos: [
-      {id:'m1', fecha:yms+'-03', tipo:'ingreso', cat:'Sueldo', desc:'Sueldo '+MC[TM], formaPago:'Débito', monto:1850000, cuentaId:'a1'},
-      {id:'m2', fecha:yms+'-05', tipo:'gasto', cat:'Supermercado', desc:'Compra semanal', formaPago:'Débito', monto:42000, cuentaId:'a1'},
-      {id:'m3', fecha:yms+'-08', tipo:'gasto', cat:'Combustible', desc:'Nafta YPF', formaPago:'Efectivo', monto:58500, cuentaId:'a1'},
-      {id:'m4', fecha:yms+'-10', tipo:'gasto', cat:'Servicios', desc:'Luz EPEC', formaPago:'Débito', monto:28000, cuentaId:'a1'},
-      {id:'m5', fecha:yms+'-15', tipo:'ingreso', cat:'Alquiler cobrado', desc:'Alquiler casa', formaPago:'Transferencia', monto:320000, cuentaId:'a1'},
-      {id:'m6', fecha:yms+'-17', tipo:'gasto', cat:'Restaurantes', desc:'Almuerzo', formaPago:'Efectivo', monto:18500, cuentaId:'a4'},
-      {id:'m7', fecha:yms+'-20', tipo:'gasto', cat:'Salud', desc:'Prepaga', formaPago:'Débito', monto:65000, cuentaId:'a1'},
-      {id:'m8', fecha:yms+'-22', tipo:'gasto', cat:'Supermercado', desc:'Compra quincena', formaPago:'Débito', monto:55000, cuentaId:'a1'}
-    ],
+    cedears: [],
+    movimientos: [],
     eventos: [],
     cierresMes: [],
     metas: [],
