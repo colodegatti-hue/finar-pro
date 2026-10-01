@@ -611,16 +611,24 @@ function initGoogleSignIn() {
 
 async function doGoogleAuth() {
   var btn = document.querySelector('#google_btn_container button');
-  if (btn) { btn.textContent = 'Redirigiendo...'; btn.disabled = true; }
+  if (btn) { btn.textContent = 'Abriendo Google...'; btn.disabled = true; }
   var verifier = generateRandom(32);
   var challenge = await generateCodeChallenge(verifier);
   localStorage.setItem('pkce_verifier', verifier);
-  var redirectTo = 'https://finar-pro.vercel.app';
+
+  var isAndroid = !!(window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'android');
+  var redirectTo = isAndroid ? 'finar-pro://auth/callback' : 'https://finar-pro.vercel.app';
+
   var url = SUPA_URL + '/auth/v1/authorize?provider=google' +
     '&redirect_to=' + encodeURIComponent(redirectTo) +
     '&code_challenge=' + challenge +
     '&code_challenge_method=S256';
-  window.location.href = url;
+
+  if (isAndroid && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+    window.Capacitor.Plugins.Browser.open({ url: url, windowName: '_blank', toolbarColor: '#0A0E1A' });
+  } else {
+    window.location.href = url;
+  }
 }
 
 async function handleGoogleCredential(response) {
@@ -718,7 +726,7 @@ function doGoogleGmailAuth() {
   generateCodeChallenge(verif).then(function(chal) {
     localStorage.setItem('gmail_verifier', verif);
     localStorage.setItem('gmail_pending', '1');
-    var redir = window.location.origin + window.location.pathname;
+    var redir = 'https://finar-pro.vercel.app/';
     var url = 'https://accounts.google.com/o/oauth2/v2/auth' +
       '?client_id=' + encodeURIComponent(GOOGLE_CLIENT_ID) +
       '&redirect_uri=' + encodeURIComponent(redir) +
@@ -750,7 +758,7 @@ async function checkGmailCallback() {
   localStorage.removeItem('gmail_verifier');
   localStorage.removeItem('gmail_pending');
   try {
-    var redir = window.location.origin + window.location.pathname;
+    var redir = 'https://finar-pro.vercel.app/';
     // Exchange via Cloudflare Worker (tiene el client_secret)
     var resp = await fetch('https://odd-dream-46ba.colodegatti.workers.dev/gmail-token', {
       method: 'POST',
@@ -2130,6 +2138,69 @@ function usarSinCuenta() {
   entrarApp();
 }
 
+function manejarDeepLinkOAuth(url) {
+  if (!url) return;
+  console.log('Deep link OAuth recibido:', url);
+  var params = {};
+  var hashIdx = url.indexOf('#');
+  var qIdx = url.indexOf('?');
+  if (hashIdx !== -1) {
+    url.substring(hashIdx + 1).split('&').forEach(function(p) {
+      var kv = p.split('='); params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || '');
+    });
+  } else if (qIdx !== -1) {
+    url.substring(qIdx + 1).split('&').forEach(function(p) {
+      var kv = p.split('='); params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || '');
+    });
+  }
+  var closeBrowser = function() {
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+      try { window.Capacitor.Plugins.Browser.close(); } catch(e) {}
+    }
+  };
+  if (params.access_token) {
+    fetch(SUPA_URL + '/auth/v1/user', {
+      headers: { 'Authorization': 'Bearer ' + params.access_token, 'apikey': SUPA_KEY }
+    }).then(function(r) { return r.json(); }).then(function(user) {
+      if (user && user.id) {
+        authToken = params.access_token;
+        currentUser = user;
+        localStorage.setItem('finar_session', JSON.stringify({access_token: params.access_token, user: user}));
+        closeBrowser();
+        entrarApp();
+      }
+    }).catch(function(e) { console.error('Error fetch user deep link:', e); });
+  } else if (params.code) {
+    var verifier = localStorage.getItem('pkce_verifier') || '';
+    fetch(SUPA_URL + '/auth/v1/token?grant_type=pkce', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY },
+      body: JSON.stringify({ auth_code: params.code, code_verifier: verifier })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (data && data.access_token) {
+        authToken = data.access_token;
+        currentUser = data.user || {};
+        localStorage.setItem('finar_session', JSON.stringify({access_token: data.access_token, user: currentUser}));
+        closeBrowser();
+        entrarApp();
+      } else {
+        console.error('Error token PKCE:', JSON.stringify(data));
+      }
+    }).catch(function(e) { console.error('Error PKCE exchange:', e); });
+  }
+}
+
+function registrarListenerDeepLink() {
+  if (!window.Capacitor || !window.Capacitor.Plugins || !window.Capacitor.Plugins.App) return;
+  window.Capacitor.Plugins.App.addListener('appUrlOpen', function(event) {
+    console.log('appUrlOpen event:', event.url);
+    if (event.url && event.url.indexOf('finar-pro://auth/callback') === 0) {
+      manejarDeepLinkOAuth(event.url);
+    }
+  });
+  console.log('Deep link listener registrado OK');
+}
+
 function entrarApp() {
   var _ae = document.getElementById('auth_email');
   if (_ae && _ae.value && _ae.value.trim()) {
@@ -2710,6 +2781,7 @@ window.addEventListener('load', async function() {
 
   // Detectar callback de Google OAuth
   initSupabase(); // Cargar sesión guardada antes del callback
+  registrarListenerDeepLink(); // Deep link Android OAuth
   console.log('Startup: authToken=', !!authToken, 'currentUser=', !!currentUser);
   if (await handleOAuthCallback()) {
     // Viene de Google, ya tiene token — entrar directo
