@@ -2214,11 +2214,8 @@ function registrarListenerDeepLink() {
         var kv = p.split('='); qp[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1]||'');
       });
       var gmailCode = qp['code'];
-      var gmailVerif = localStorage.getItem('gmail_verifier');
-      var gmailRedir = localStorage.getItem('gmail_redir') || 'finar-pro://gmail/callback';
-      localStorage.removeItem('gmail_verifier');
-      localStorage.removeItem('gmail_pending');
-      localStorage.removeItem('gmail_redir');
+      var gmailVerif = qp['verifier'];
+      var gmailRedir = 'https://finar-pro.vercel.app/';
       if (gmailCode && gmailVerif) {
         fetch('https://odd-dream-46ba.colodegatti.workers.dev/gmail-token', {
           method: 'POST',
