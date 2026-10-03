@@ -722,14 +722,11 @@ var googleAccessToken = localStorage.getItem('finar_google_token') || '';
 
 function doGoogleGmailAuth() {
   // PKCE code flow - el exchange se hace via Cloudflare Worker
-  var isAndroid = !!(window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'android');
   var verif = generateRandom(32);
   generateCodeChallenge(verif).then(function(chal) {
     localStorage.setItem('gmail_verifier', verif);
     localStorage.setItem('gmail_pending', '1');
-    // En Android usamos deep link para que la app capture el code directamente
-    var redir = isAndroid ? 'finar-pro://gmail/callback' : 'https://finar-pro.vercel.app/';
-    localStorage.setItem('gmail_redir', redir);
+    var redir = 'https://finar-pro.vercel.app/';
     var url = 'https://accounts.google.com/o/oauth2/v2/auth' +
       '?client_id=' + encodeURIComponent(GOOGLE_CLIENT_ID) +
       '&redirect_uri=' + encodeURIComponent(redir) +
@@ -739,6 +736,7 @@ function doGoogleGmailAuth() {
       '&code_challenge_method=S256' +
       '&access_type=online' +
       '&prompt=select_account';
+    var isAndroid = !!(window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'android');
     if (isAndroid && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
       window.Capacitor.Plugins.Browser.open({ url: url, windowName: '_self', toolbarColor: '#0A0E1A' });
     } else {
