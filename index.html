@@ -722,11 +722,14 @@ var googleAccessToken = localStorage.getItem('finar_google_token') || '';
 
 function doGoogleGmailAuth() {
   // PKCE code flow - el exchange se hace via Cloudflare Worker
+  var isAndroid = !!(window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'android');
   var verif = generateRandom(32);
   generateCodeChallenge(verif).then(function(chal) {
     localStorage.setItem('gmail_verifier', verif);
     localStorage.setItem('gmail_pending', '1');
-    var redir = 'https://finar-pro.vercel.app/';
+    // En Android usamos deep link para que la app capture el code directamente
+    var redir = isAndroid ? 'finar-pro://gmail/callback' : 'https://finar-pro.vercel.app/';
+    localStorage.setItem('gmail_redir', redir);
     var url = 'https://accounts.google.com/o/oauth2/v2/auth' +
       '?client_id=' + encodeURIComponent(GOOGLE_CLIENT_ID) +
       '&redirect_uri=' + encodeURIComponent(redir) +
@@ -736,7 +739,11 @@ function doGoogleGmailAuth() {
       '&code_challenge_method=S256' +
       '&access_type=online' +
       '&prompt=select_account';
-    window.location.href = url;
+    if (isAndroid && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+      window.Capacitor.Plugins.Browser.open({ url: url, windowName: '_self', toolbarColor: '#0A0E1A' });
+    } else {
+      window.location.href = url;
+    }
   });
 }
 
@@ -758,7 +765,8 @@ async function checkGmailCallback() {
   localStorage.removeItem('gmail_verifier');
   localStorage.removeItem('gmail_pending');
   try {
-    var redir = 'https://finar-pro.vercel.app/';
+    var redir = localStorage.getItem('gmail_redir') || 'https://finar-pro.vercel.app/';
+    localStorage.removeItem('gmail_redir');
     // Exchange via Cloudflare Worker (tiene el client_secret)
     var resp = await fetch('https://odd-dream-46ba.colodegatti.workers.dev/gmail-token', {
       method: 'POST',
@@ -2194,7 +2202,40 @@ function registrarListenerDeepLink() {
   if (!window.Capacitor || !window.Capacitor.Plugins || !window.Capacitor.Plugins.App) return;
   window.Capacitor.Plugins.App.addListener('appUrlOpen', function(event) {
     console.log('appUrlOpen event:', event.url);
-    if (event.url && event.url.indexOf('finar-pro://auth/callback') === 0) {
+    if (event.url && event.url.indexOf('finar-pro://gmail/callback') === 0) {
+      // Gmail OAuth callback en Android
+      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+        try { window.Capacitor.Plugins.Browser.close(); } catch(e) {}
+      }
+      var gmailUrl = event.url;
+      var qStr = gmailUrl.indexOf('?') !== -1 ? gmailUrl.substring(gmailUrl.indexOf('?')) : '';
+      var qp = {};
+      qStr.replace('?','').split('&').forEach(function(p) {
+        var kv = p.split('='); qp[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1]||'');
+      });
+      var gmailCode = qp['code'];
+      var gmailVerif = localStorage.getItem('gmail_verifier');
+      var gmailRedir = localStorage.getItem('gmail_redir') || 'finar-pro://gmail/callback';
+      localStorage.removeItem('gmail_verifier');
+      localStorage.removeItem('gmail_pending');
+      localStorage.removeItem('gmail_redir');
+      if (gmailCode && gmailVerif) {
+        fetch('https://odd-dream-46ba.colodegatti.workers.dev/gmail-token', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({code: gmailCode, verifier: gmailVerif, redirect_uri: gmailRedir})
+        }).then(function(r){ return r.json(); }).then(function(data){
+          if (data.access_token) {
+            googleAccessToken = data.access_token;
+            localStorage.setItem('finar_google_token', googleAccessToken);
+            toast('Gmail conectado! Importando...');
+            setTimeout(function(){ APP.importarDesdeGmail(); }, 600);
+          } else {
+            showAlert('Error Gmail: ' + (data.error_description || data.error || 'sin token'));
+          }
+        }).catch(function(e){ showAlert('Error Gmail: ' + e.message); });
+      }
+    } else if (event.url && event.url.indexOf('finar-pro://auth/callback') === 0) {
       manejarDeepLinkOAuth(event.url);
     }
   });
