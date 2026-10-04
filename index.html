@@ -1022,6 +1022,7 @@ function confirmarImportGmail() {
 // ── Guardar en Supabase (async) ───────────────────────────────────────────────
 async function saveCloud(data) {
   if (!authToken || !currentUser) return;
+  if (_startupSyncLock) { console.log('saveCloud bloqueado durante startup'); return; }
   try {
     await supaRest('POST', '/rest/v1/user_data', {
       user_id: currentUser.id,
@@ -2119,7 +2120,9 @@ async function doAuth() {
     var cloudData = await loadCloud();
     if (cloudData) {
       localStorage.setItem(KEY, JSON.stringify(cloudData));
+      try { S = JSON.parse(JSON.stringify(cloudData)); } catch(e2) {}
     }
+    _startupSyncLock = false; // Liberar lock: datos de nube cargados
     entrarApp();
     setTimeout(function() {
       var _hd = huellaDisponible();
@@ -2831,6 +2834,7 @@ window.addEventListener('load', async function() {
           if (raw2) S = JSON.parse(raw2);
         } catch(e2) {}
       }
+      _startupSyncLock = false; // Liberar lock OAuth path
       var savedPin = localStorage.getItem('finar_pin');
       if (savedPin) {
         var aw2 = document.getElementById('AUTH_WRAP');
@@ -2870,6 +2874,7 @@ window.addEventListener('load', async function() {
       } catch(cloudErr) {
         console.log('loadCloud fallo, usando datos locales:', cloudErr.message);
       }
+      _startupSyncLock = false; // Liberar lock: S ya tiene datos de nube
       var savedPin = localStorage.getItem('finar_pin');
       if (savedPin) {
         var aw3 = document.getElementById('AUTH_WRAP');
@@ -2894,6 +2899,7 @@ window.addEventListener('load', async function() {
 // MODO OFFLINE
 // ═══════════════════════════════════════════════════════════
 var isOnline = navigator.onLine;
+var _startupSyncLock = true; // Bloquear saveCloud hasta que loadCloud termine
 
 window.addEventListener('online', function() {
   isOnline = true;
