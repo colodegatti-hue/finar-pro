@@ -1111,19 +1111,87 @@ function confirmarImportGmail() {
 }
 
 // ── Guardar en Supabase (async) ───────────────────────────────────────────────
-async function saveCloud(data) {
-  if (!authToken || !currentUser) return;
-  if (_startupSyncLock) { console.log('saveCloud bloqueado durante startup'); return; }
+var SYNC_PEND_KEY = 'finar_pending_sync';
+function leerPendienteSync() {
+  try { var v = localStorage.getItem(SYNC_PEND_KEY); return v ? JSON.parse(v) : null; } catch(e) { return null; }
+}
+function marcarPendienteSync() {
   try {
-    await supaRest('POST', '/rest/v1/user_data', {
+    var p = leerPendienteSync();
+    var t0 = p && p.t0 ? p.t0 : Date.now();
+    localStorage.setItem(SYNC_PEND_KEY, JSON.stringify({ t0: t0, t: Date.now(), u: currentUser && currentUser.id ? currentUser.id : null }));
+  } catch(e) {}
+}
+function respaldar(clave, obj) {
+  try { if (obj) localStorage.setItem(clave, JSON.stringify({ t: new Date().toISOString(), data: obj })); } catch(e) { console.log('No se pudo respaldar ' + clave + ':', e.message); }
+}
+// Decide al cargar la nube: true = conservar datos locales (hay cambios sin subir)
+function conservarLocalPendiente(cloudData) {
+  var p = leerPendienteSync();
+  if (p && !(p.u && currentUser && currentUser.id && p.u !== currentUser.id)) {
+    console.log('Hay cambios locales sin subir desde ' + new Date(p.t0 || p.t).toLocaleString() + ': se conservan y se suben a la nube');
+    respaldar('finar_backup_nube', cloudData);
+    return true;
+  }
+  respaldar('finar_backup_local', S);
+  return false;
+}
+function actualizarIndicadorSync() {
+  try {
+    var p = leerPendienteSync();
+    var mostrar = !!(p && (Date.now() - p.t0) > 20000);
+    var el = document.getElementById('SYNC_PEND');
+    if (!el && mostrar) {
+      el = document.createElement('div');
+      el.id = 'SYNC_PEND';
+      el.textContent = '\u2601 Sin sincronizar - tocar para reintentar';
+      el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:78px;z-index:9999;background:#F04438;color:#fff;font-size:11px;font-weight:700;padding:6px 12px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.4);cursor:pointer';
+      el.onclick = function() { el.textContent = '\u2601 Sincronizando...'; reintentarSync(true); };
+      document.body.appendChild(el);
+    }
+    if (el) {
+      el.style.display = mostrar ? 'block' : 'none';
+      if (mostrar) el.textContent = '\u2601 Sin sincronizar - tocar para reintentar';
+    }
+  } catch(e) {}
+}
+function reintentarSync(forzar) {
+  if (!leerPendienteSync()) { actualizarIndicadorSync(); return; }
+  if (!authToken || !currentUser) {
+    console.log('reintentarSync: sin sesion');
+    if (forzar) { try { var t = document.getElementById('TOAST'); t.textContent = 'Inicia sesion para sincronizar'; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); }, 3000); } catch(e) {} }
+    actualizarIndicadorSync();
+    return;
+  }
+  if (_startupSyncLock) return;
+  saveCloud(S);
+}
+async function saveCloud(data) {
+  marcarPendienteSync();
+  if (!authToken || !currentUser) { console.log('saveCloud: sin sesion, queda pendiente'); actualizarIndicadorSync(); return; }
+  if (_startupSyncLock) { console.log('saveCloud bloqueado durante startup (queda pendiente)'); return; }
+  var marca = (leerPendienteSync() || {}).t;
+  try {
+    var r = await supaRest('POST', '/rest/v1/user_data', {
       user_id: currentUser.id,
-      data: data,
+      data: data || S,
       updated_at: new Date().toISOString()
     }, true, { 'Prefer': 'resolution=merge-duplicates' });
+    if (r && r.ok) {
+      var p = leerPendienteSync();
+      if (!p || p.t === marca) localStorage.removeItem(SYNC_PEND_KEY);
+      console.log('saveCloud OK');
+    } else {
+      console.log('saveCloud: respuesta ' + (r ? r.status : '?') + ', queda pendiente');
+    }
   } catch(e) {
-    console.log('Error guardando en nube:', e.message);
+    console.log('Error guardando en nube (queda pendiente):', e.message);
   }
+  actualizarIndicadorSync();
 }
+setInterval(function() { reintentarSync(false); }, 60000);
+setInterval(actualizarIndicadorSync, 20000);
+document.addEventListener('visibilitychange', function() { if (!document.hidden) setTimeout(function() { reintentarSync(false); }, 1500); });
 
 // ── Cargar desde Supabase (async) ─────────────────────────────────────────────
 async function loadCloud() {
@@ -1328,7 +1396,7 @@ var S = (function() {
 function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify(S));
-    if (supabase && currentUser && isOnline) {
+    if (supabase) {
       saveCloud(S);
     }
     // Update Android widget with fresh data
@@ -2298,11 +2366,12 @@ async function doAuth() {
     }
     // Load cloud data
     var cloudData = await loadCloud();
-    if (cloudData) {
+    if (cloudData && !conservarLocalPendiente(cloudData)) {
       localStorage.setItem(KEY, JSON.stringify(cloudData));
       try { S = JSON.parse(JSON.stringify(cloudData)); } catch(e2) {}
     }
     _startupSyncLock = false; // Liberar lock: datos de nube cargados
+    setTimeout(function() { reintentarSync(false); }, 1500);
     entrarApp();
     setTimeout(function() {
       var _hd = huellaDisponible();
@@ -3007,7 +3076,7 @@ window.addEventListener('load', async function() {
     // Viene de Google, ya tiene token — entrar directo
     try {
       var cloudData = await loadCloud();
-      if (cloudData) {
+      if (cloudData && !conservarLocalPendiente(cloudData)) {
         localStorage.setItem(KEY, JSON.stringify(cloudData));
         // Recargar S desde el nuevo localStorage
         try {
@@ -3016,6 +3085,7 @@ window.addEventListener('load', async function() {
         } catch(e2) {}
       }
       _startupSyncLock = false; // Liberar lock OAuth path
+      setTimeout(function() { reintentarSync(false); }, 1500);
       var savedPin = localStorage.getItem('finar_pin');
       if (savedPin) {
         var aw2 = document.getElementById('AUTH_WRAP');
@@ -3048,7 +3118,7 @@ window.addEventListener('load', async function() {
       currentUser = result.data.session.user;
       try {
         var cloudData = await loadCloud();
-        if (cloudData) {
+        if (cloudData && !conservarLocalPendiente(cloudData)) {
           localStorage.setItem(KEY, JSON.stringify(cloudData));
           try { S = JSON.parse(JSON.stringify(cloudData)); } catch(e2) {}
         }
@@ -3056,6 +3126,7 @@ window.addEventListener('load', async function() {
         console.log('loadCloud fallo, usando datos locales:', cloudErr.message);
       }
       _startupSyncLock = false; // Liberar lock: S ya tiene datos de nube
+      setTimeout(function() { reintentarSync(false); }, 1500);
       var savedPin = localStorage.getItem('finar_pin');
       if (savedPin) {
         var aw3 = document.getElementById('AUTH_WRAP');
