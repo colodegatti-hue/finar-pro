@@ -635,7 +635,9 @@ async function _supaRestRaw(method, path, body, useAuth, extraHeaders) {
   var opts = { method: method, headers: headers };
   if (body) opts.body = JSON.stringify(body);
   var r = await fetch(SUPA_URL + path, opts);
-  var json = await r.json();
+  var txt = await r.text();
+  var json = {};
+  if (txt) { try { json = JSON.parse(txt); } catch(eJ) { json = { raw: txt }; } }
   return { ok: r.ok, status: r.status, data: json };
 }
 
@@ -1382,8 +1384,63 @@ applyTheme();
 function getValorUVA() {
   return S.config.uvaValor && S.config.uvaValor > 0 ? S.config.uvaValor : null;
 }
+function _isoFecha(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function _fechaCorta(iso) {
+  if (!iso) return '';
+  var p = iso.split('-');
+  return p[2] + '/' + p[1];
+}
+// Guarda en config solo los ultimos 45 dias + los futuros publicados por el BCRA
+function guardarSerieUVA(arr) {
+  if (!Array.isArray(arr) || !arr.length) return;
+  var desde = new Date(); desde.setDate(desde.getDate() - 45);
+  var dStr = _isoFecha(desde);
+  S.config.uvaSerie = arr.filter(function(x) { return x && x.fecha && x.fecha >= dStr; })
+    .map(function(x) { return { fecha: x.fecha, valor: +x.valor }; });
+}
+function getValorUVAFecha(fecha) {
+  var s = S.config.uvaSerie || [];
+  for (var i = 0; i < s.length; i++) if (s[i].fecha === fecha) return s[i].valor;
+  return null;
+}
+function ultimaFechaUVA() {
+  var s = S.config.uvaSerie || [];
+  return s.length ? s[s.length - 1] : null;
+}
+// Proximo vencimiento del prestamo segun su dia de pago
+function proxVtoPrestamo(p) {
+  var dia = p.diaPago || 28;
+  var hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  var v = new Date(hoy.getFullYear(), hoy.getMonth(), dia);
+  if (v < hoy) v = new Date(hoy.getFullYear(), hoy.getMonth() + 1, dia);
+  return _isoFecha(v);
+}
+// Valor UVA que usa cada prestamo: 1) fecha elegida a mano (si no paso), 2) valor publicado al vencimiento, 3) valor actual
+function getValorUVAPrestamo(p) {
+  var hoyStr = _isoFecha(new Date());
+  if (p.uvaValorRef > 0 && p.uvaFechaRef && p.uvaFechaRef >= hoyStr) {
+    return { valor: p.uvaValorRef, fecha: p.uvaFechaRef, origen: 'manual' };
+  }
+  var fv = proxVtoPrestamo(p);
+  var v = getValorUVAFecha(fv);
+  if (v) return { valor: v, fecha: fv, origen: 'vto' };
+  return { valor: getValorUVA(), fecha: S.config.uvaFecha || '', origen: 'actual' };
+}
+function renderFilaUVAPrest(p) {
+  var u = getValorUVAPrestamo(p);
+  var etiqueta = u.origen === 'manual' ? 'Valor UVA al ' + _fechaCorta(u.fecha) + ' (elegido)'
+    : u.origen === 'vto' ? 'Valor UVA al vto ' + _fechaCorta(u.fecha)
+    : 'Valor UVA actual';
+  var aviso = u.origen === 'actual'
+    ? '<div style="font-size:9px;color:var(--yellow);margin-top:2px">El valor UVA al vencimiento (' + _fechaCorta(proxVtoPrestamo(p)) + ') todavia no esta publicado. Podes cargarlo a mano.</div>'
+    : '';
+  return '<div class="row"><span class="rl">' + etiqueta + '</span><span class="rv">' + (u.valor ? '$' + u.valor.toFixed(2) : '--') + '</span></div>' + aviso +
+    '<button class="btn btn-s btn-sm btn-w" onclick="try{APP.modalUVAFecha(\'' + p.id + '\')}catch(e){console.log(e)}" style="margin-top:6px">\uD83D\uDCC5 Cambiar fecha del valor UVA</button>';
+}
 function getCuotaUVA(prestamo) {
-  if (prestamo.tipo === 'uva' && prestamo.cantidadUVAs && getValorUVA()) {
+  if (prestamo.tipo === 'uva' && prestamo.cantidadUVAs && getValorUVAPrestamo(prestamo).valor) {
     // Also recalc capital/interest split for current cuota (French system)
     if (prestamo.capitalOrigUVAs && prestamo.tasaUVA) {
       var tm = (prestamo.tasaUVA / 100) / 12;
@@ -1395,7 +1452,7 @@ function getCuotaUVA(prestamo) {
         prestamo.capitalUVAs = prestamo.cantidadUVAs - interesK;
       }
     }
-    return Math.round(prestamo.cantidadUVAs * getValorUVA());
+    return Math.round(prestamo.cantidadUVAs * getValorUVAPrestamo(prestamo).valor);
   }
   return prestamo.cuota;
 }
@@ -5884,7 +5941,7 @@ function generarAnalisisMes(ci) {
       var rest = p.cuotaTotal - p.cuotaN + 1, pctP = p.cuotaN / p.cuotaTotal * 100;
       var isUVA = p.tipo === 'uva', ac = isUVA ? 'var(--purple)' : 'var(--blue)';
       // For UVA loans: recalculate cuota from UVAs if available
-      if (isUVA && p.cantidadUVAs && getValorUVA()) {
+      if (isUVA && p.cantidadUVAs && getValorUVAPrestamo(p).valor) {
         p.cuota = getCuotaUVA(p);
       }
       var proxC = isUVA ? p.cuota * (1 + inflAct()) : p.cuota;
@@ -5950,7 +6007,7 @@ function generarAnalisisMes(ci) {
           '<div style="background:var(--s3);border-radius:var(--rs);padding:7px;text-align:center"><div style="font-size:9px;color:var(--dim)">Día pago</div><div style="font-size:15px;font-weight:800">' + p.diaPago + '</div></div>' +
         '</div>' +
         (isUVA && p.cantidadUVAs ? '<div class="row"><span class="rl">Cuota en UVAs</span><span class="rv" style="color:var(--purple)">' + p.cantidadUVAs.toFixed(2) + ' UVAs</span></div>' : '') +
-        (isUVA && p.cantidadUVAs && getValorUVA() ? '<div class="row"><span class="rl">Valor UVA actual</span><span class="rv">$' + getValorUVA().toFixed(2) + '</span></div>' : '') +
+        (isUVA && p.cantidadUVAs ? renderFilaUVAPrest(p) : '') +
         (isUVA && p.capitalUVAs ? '<div class="row"><span class="rl">Capital en UVAs</span><span class="rv">' + p.capitalUVAs.toFixed(2) + ' UVAs</span></div>' : '') +
         (isUVA && p.capitalUVAs ? '<div class="row"><span class="rl">Interes en UVAs</span><span class="rv">' + (p.cantidadUVAs - p.capitalUVAs).toFixed(2) + ' UVAs</span></div>' : '') +
         (isUVA ? '<div class="row"><span class="rl">Proxima cuota (est. +' + (inflAct() * 100).toFixed(1) + '%)</span><span class="rv" style="color:var(--yellow)">' + fmt(proxC) + '</span></div>' : '') +
@@ -6237,6 +6294,66 @@ function generarAnalisisMes(ci) {
     p.cuotaTotal = +document.getElementById('ep_t').value;
     p.diaPago = +document.getElementById('ep_d').value;
     save(); closeM(); render(); toast('Actualizado OK');
+  }
+  function modalUVAFecha(id) {
+    var p = S.prestamos.find(function(x){ return x.id === id; });
+    if (!p) return;
+    var hoyStr = _isoFecha(new Date());
+    var fecha = (p.uvaFechaRef && p.uvaFechaRef >= hoyStr) ? p.uvaFechaRef : proxVtoPrestamo(p);
+    var ult = ultimaFechaUVA();
+    var html = '<div class="mh"></div><div class="mt">\uD83D\uDCC5 Valor UVA a una fecha</div>' +
+      '<div style="font-size:11px;color:var(--dim);margin-bottom:10px">Elegi la fecha de pago y la cuota se calcula con el valor UVA de ese dia.' +
+        (ult ? ' Ultimo valor publicado: $' + ult.valor.toFixed(2) + ' al ' + _fechaCorta(ult.fecha) + '.' : ' Toca "Sincronizar ahora" en Mas para bajar los valores oficiales.') + '</div>' +
+      '<div class="fg"><label>Fecha</label><input class="inp" type="date" id="uvaf_fecha" value="' + fecha + '" onchange="APP.previewUVAFecha(\'' + p.id + '\')"/></div>' +
+      '<div class="fg"><label>Valor UVA ($)</label><input class="inp" type="number" step="0.01" id="uvaf_valor" oninput="APP.previewUVAFecha(\'' + p.id + '\', true)"/></div>' +
+      '<div id="uvaf_prev" style="background:var(--s3);border-radius:var(--rs);padding:10px;margin-bottom:8px;font-size:11px;color:var(--dim)"></div>' +
+      '<div style="display:flex;gap:8px;margin-top:4px">' +
+        '<button class="btn btn-p" style="flex:1" onclick="APP.guardarUVAFecha(\'' + p.id + '\')">Guardar</button>' +
+        '<button class="btn btn-s" onclick="APP.limpiarUVAFecha(\'' + p.id + '\')">Automatico</button>' +
+      '</div>';
+    openM(html);
+    previewUVAFecha(id);
+  }
+  function previewUVAFecha(id, manual) {
+    var p = S.prestamos.find(function(x){ return x.id === id; });
+    var fEl = document.getElementById('uvaf_fecha'), vEl = document.getElementById('uvaf_valor'), prev = document.getElementById('uvaf_prev');
+    if (!p || !fEl || !vEl || !prev) return;
+    var fecha = fEl.value;
+    var pub = getValorUVAFecha(fecha);
+    if (!manual) {
+      if (pub) vEl.value = pub.toFixed(2);
+      else if (p.uvaFechaRef === fecha && p.uvaValorRef) vEl.value = p.uvaValorRef;
+      else vEl.value = '';
+    }
+    var val = +vEl.value;
+    var nota = pub
+      ? '<span style="color:var(--green)">Valor oficial publicado por el BCRA para esa fecha</span>'
+      : '<span style="color:var(--yellow)">Todavia no hay valor publicado para esa fecha: cargalo a mano (home banking o bcra.gob.ar)</span>';
+    prev.innerHTML = (val > 0 && p.cantidadUVAs
+      ? '<div style="font-size:13px;font-weight:700;color:var(--text)">' + p.cantidadUVAs.toFixed(2) + ' UVAs x $' + val.toFixed(2) + ' = <span style="color:var(--green)">' + fmt(Math.round(p.cantidadUVAs * val)) + '</span></div>'
+      : '') + '<div style="margin-top:4px">' + nota + '</div>';
+  }
+  function guardarUVAFecha(id) {
+    var p = S.prestamos.find(function(x){ return x.id === id; });
+    if (!p) return;
+    var fecha = (document.getElementById('uvaf_fecha') || {}).value;
+    var val = +((document.getElementById('uvaf_valor') || {}).value);
+    if (!fecha || !(val > 0)) return showAlert('Elegi una fecha y un valor UVA valido');
+    if (fecha < _isoFecha(new Date())) return showAlert('Elegi una fecha de hoy en adelante');
+    p.uvaFechaRef = fecha;
+    p.uvaValorRef = val;
+    p.cuota = getCuotaUVA(p);
+    save(); closeM(); render();
+    toast('Cuota calculada con UVA al ' + _fechaCorta(fecha) + ': ' + fmt(p.cuota));
+  }
+  function limpiarUVAFecha(id) {
+    var p = S.prestamos.find(function(x){ return x.id === id; });
+    if (!p) return;
+    delete p.uvaFechaRef;
+    delete p.uvaValorRef;
+    p.cuota = getCuotaUVA(p);
+    save(); closeM(); render();
+    toast('Valor UVA automatico');
   }
   function modalSimUVA(id) {
     var p = S.prestamos.find(function(x) { return x.id === id; }); if (!p) return;
@@ -7271,7 +7388,10 @@ async function testNotificacion() {
         var ultimo = uvaData[uvaData.length - 1];
         var uvaAnterior = S.config.valorUVA || 0;
         S.config.valorUVA = ultimo.valor;
-        S.config.uvaFecha = ultimo.fecha;
+        guardarSerieUVA(uvaData);
+        var _uvaHoy = getValorUVAFecha(_isoFecha(new Date()));
+        S.config.uvaValor = _uvaHoy || ultimo.valor;
+        S.config.uvaFecha = _uvaHoy ? _isoFecha(new Date()) : ultimo.fecha;
         if (uvaAnterior !== ultimo.valor) {
           save();
           console.log("UVA actualizado: $" + ultimo.valor + " (fecha: " + ultimo.fecha + ")");
@@ -7283,9 +7403,19 @@ async function testNotificacion() {
 
     try {
       // 3. Fetch dolar blue
-      var respDolar = await fetch("https://api.argentinadatos.com/v1/cotizaciones/dolares/blue/ultimo");
-      if (!respDolar.ok) throw new Error("HTTP dolar " + respDolar.status);
-      var dolarData = await respDolar.json();
+      var dolarData = null;
+      try {
+        var respDolar = await fetch("https://dolarapi.com/v1/dolares/blue");
+        if (!respDolar.ok) throw new Error("HTTP dolarapi " + respDolar.status);
+        dolarData = await respDolar.json();
+        if (dolarData && dolarData.fechaActualizacion) dolarData.fecha = String(dolarData.fechaActualizacion).slice(0, 10);
+      } catch(eD1) {
+        console.log("dolarapi fallo, probando argentinadatos:", eD1.message || eD1);
+        var respDolar2 = await fetch("https://api.argentinadatos.com/v1/cotizaciones/dolares/blue");
+        if (!respDolar2.ok) throw new Error("HTTP dolar " + respDolar2.status);
+        var arrD = await respDolar2.json();
+        dolarData = Array.isArray(arrD) && arrD.length ? arrD[arrD.length - 1] : null;
+      }
       if (dolarData && dolarData.venta) {
         S.config.dolarBlue = dolarData.venta;
         S.config.dolarBlueCompra = dolarData.compra;
@@ -8166,6 +8296,7 @@ async function testNotificacion() {
           var arr = Array.isArray(d) ? d : [];
           if (arr.length > 0) {
             var last = arr[arr.length-1];
+            guardarSerieUVA(arr);
             uvaVal = parseFloat(last.valor);
             uvaFecha = last.fecha || 'reciente';
             return uvaVal > 0;
@@ -8417,7 +8548,7 @@ async function testNotificacion() {
     modalEditCuenta: modalEditCuenta, modalAddPrest: modalAddPrest,
     modalPagarPrest: modalPagarPrest,
     modalAddTarjeta: modalAddTarjeta, modalEditTarjeta: modalEditTarjeta, saveTarjeta: saveTarjeta, confirmarPagarPrest: confirmarPagarPrest, revertirPagoPrest: revertirPagoPrest,
-    modalEditPrest: modalEditPrest, modalSimUVA: modalSimUVA, modalSimNuevo: modalSimNuevo,
+    modalEditPrest: modalEditPrest, modalSimUVA: modalSimUVA, modalUVAFecha: modalUVAFecha, previewUVAFecha: previewUVAFecha, guardarUVAFecha: guardarUVAFecha, limpiarUVAFecha: limpiarUVAFecha, modalSimNuevo: modalSimNuevo,
     modalAddC: modalAddC, modalEditC: modalEditC, modalCompraC: modalCompraC,
     modalEvento: modalEvento, modalInfl: modalInfl, modalAddComp: modalAddComp, modalEditComp: modalEditComp,
     // Save actions
