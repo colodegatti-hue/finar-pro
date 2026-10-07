@@ -516,6 +516,80 @@ var SUPA_KEY = 'sb_publishable_D2ciwhxM8UyHTbjfT8Fmhg_j_CQ1lMp';
 var supabase = true; // always "available" - we use REST directly
 var currentUser = null;
 var authToken = null;
+var REFRESH_KEY = 'finar_refresh_token';
+var _refreshPromise = null;
+
+function guardarRefreshToken(rt) {
+  if (!rt) return;
+  try { localStorage.setItem(REFRESH_KEY, rt); } catch(e) {}
+}
+
+// Captura refresh_token de cualquier respuesta de /auth/v1/token (password, pkce, refresh)
+(function() {
+  if (window._finarFetchWrapped) return;
+  window._finarFetchWrapped = true;
+  var _origFetch = window.fetch.bind(window);
+  window._finarOrigFetch = _origFetch;
+  window.fetch = function(input, init) {
+    var url = (typeof input === 'string') ? input : (input && input.url) || '';
+    var p = _origFetch(input, init);
+    if (url.indexOf('/auth/v1/token') !== -1) {
+      p.then(function(resp) {
+        if (!resp.ok) return;
+        resp.clone().json().then(function(d) {
+          if (d && d.refresh_token) guardarRefreshToken(d.refresh_token);
+        }).catch(function() {});
+      }).catch(function() {});
+    }
+    return p;
+  };
+  // Flujo implicit web: el refresh_token puede venir en el hash de la URL
+  try {
+    var h = window.location.hash || '';
+    var m = h.match(/[#&]refresh_token=([^&]+)/);
+    if (m) guardarRefreshToken(decodeURIComponent(m[1]));
+  } catch(e) {}
+})();
+
+function tokenVencido(tok) {
+  try {
+    var part = tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (part.length % 4) part += '=';
+    var payload = JSON.parse(atob(part));
+    return !payload.exp || (payload.exp * 1000) < (Date.now() + 60000);
+  } catch(e) { return false; }
+}
+
+function refrescarSesion() {
+  if (_refreshPromise) return _refreshPromise;
+  var rt = null;
+  try { rt = localStorage.getItem(REFRESH_KEY); } catch(e) {}
+  if (!rt) { console.warn('refrescarSesion: no hay refresh_token guardado, hay que volver a iniciar sesion'); return Promise.resolve(false); }
+  _refreshPromise = fetch(SUPA_URL + '/auth/v1/token?grant_type=refresh_token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY },
+    body: JSON.stringify({ refresh_token: rt })
+  }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+  .then(function(res) {
+    if (res.ok && res.data && res.data.access_token) {
+      authToken = res.data.access_token;
+      if (res.data.user) currentUser = res.data.user;
+      guardarRefreshToken(res.data.refresh_token);
+      localStorage.setItem('finar_session', JSON.stringify({access_token: authToken, user: currentUser}));
+      console.log('refrescarSesion: token renovado OK');
+      return true;
+    }
+    console.warn('refrescarSesion: fallo', JSON.stringify(res.data));
+    if (res.data && (res.data.error_code === 'refresh_token_not_found' || res.data.error_code === 'refresh_token_already_used')) {
+      try { localStorage.removeItem(REFRESH_KEY); } catch(e) {}
+    }
+    return false;
+  }).catch(function(e) {
+    console.warn('refrescarSesion: error de red', e);
+    return false;
+  }).then(function(ok) { _refreshPromise = null; return ok; });
+  return _refreshPromise;
+}
 
 function initSupabase() {
   // Load saved session from localStorage
@@ -534,6 +608,20 @@ function initSupabase() {
 
 // ── REST helper ───────────────────────────────────────────────────────────────
 async function supaRest(method, path, body, useAuth, extraHeaders) {
+  if (useAuth && authToken && tokenVencido(authToken)) {
+    console.log('supaRest: token vencido, renovando antes de ' + method + ' ' + path);
+    await refrescarSesion();
+  }
+  var res = await _supaRestRaw(method, path, body, useAuth, extraHeaders);
+  if (useAuth && res.status === 401) {
+    console.log('supaRest: 401 en ' + path + ', intentando renovar token');
+    var ok = await refrescarSesion();
+    if (ok) res = await _supaRestRaw(method, path, body, useAuth, extraHeaders);
+  }
+  return res;
+}
+
+async function _supaRestRaw(method, path, body, useAuth, extraHeaders) {
   var headers = {
     'Content-Type': 'application/json',
     'apikey': SUPA_KEY,
@@ -578,6 +666,7 @@ var supabaseAuth = {
   signOut: async function() {
     authToken = null; currentUser = null;
     localStorage.removeItem('finar_session');
+    localStorage.removeItem(REFRESH_KEY);
   },
   getSession: function() {
     if (authToken && currentUser) return { data: { session: { user: currentUser } } };
@@ -2174,6 +2263,7 @@ function manejarDeepLinkOAuth(url) {
       if (user && user.id) {
         authToken = params.access_token;
         currentUser = user;
+        if (params.refresh_token) guardarRefreshToken(params.refresh_token);
         localStorage.setItem('finar_session', JSON.stringify({access_token: params.access_token, user: user}));
         closeBrowser();
         entrarApp();
