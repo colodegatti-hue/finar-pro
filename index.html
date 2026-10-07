@@ -1394,11 +1394,45 @@ function _fechaCorta(iso) {
 }
 // Guarda en config solo los ultimos 45 dias + los futuros publicados por el BCRA
 function guardarSerieUVA(arr) {
-  if (!Array.isArray(arr) || !arr.length) return;
+  if (!Array.isArray(arr) || !arr.length) return 0;
   var desde = new Date(); desde.setDate(desde.getDate() - 45);
   var dStr = _isoFecha(desde);
-  S.config.uvaSerie = arr.filter(function(x) { return x && x.fecha && x.fecha >= dStr; })
-    .map(function(x) { return { fecha: x.fecha, valor: +x.valor }; });
+  var mapa = {};
+  (S.config.uvaSerie || []).forEach(function(x) { if (x && x.fecha) mapa[x.fecha] = +x.valor; });
+  var cambios = 0;
+  arr.forEach(function(x) {
+    if (!x || !x.fecha) return;
+    var f = String(x.fecha).slice(0, 10), v = +x.valor;
+    if (!(v > 0) || f < dStr) return;
+    if (mapa[f] !== v) { mapa[f] = v; cambios++; }
+  });
+  S.config.uvaSerie = Object.keys(mapa).filter(function(f) { return f >= dStr; }).sort()
+    .map(function(f) { return { fecha: f, valor: mapa[f] }; });
+  return cambios;
+}
+// Fuente oficial BCRA (variable 31 = UVA). Publica valores futuros hasta ~el dia 15.
+async function fetchUVABCRA() {
+  var d1 = new Date(); d1.setDate(d1.getDate() - 10);
+  var d2 = new Date(); d2.setDate(d2.getDate() + 45);
+  var url = 'https://api.bcra.gob.ar/estadisticas/v4.0/monetarias/31?desde=' + _isoFecha(d1) + '&hasta=' + _isoFecha(d2);
+  var urls = [url, 'https://corsproxy.io/?' + encodeURIComponent(url)];
+  for (var i = 0; i < urls.length; i++) {
+    var via = i === 0 ? 'directo' : 'proxy';
+    try {
+      var r = await fetch(urls[i]);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      var j = await r.json();
+      var det = j && j.results && j.results[0] && j.results[0].detalle;
+      if (!Array.isArray(det) || !det.length) throw new Error('respuesta sin datos');
+      var cambios = guardarSerieUVA(det);
+      var ult = ultimaFechaUVA();
+      console.log('UVA BCRA OK (' + via + '): valores hasta ' + (ult ? ult.fecha : '?') + ', ' + cambios + ' nuevos');
+      return cambios;
+    } catch(e) {
+      console.log('UVA BCRA fallo (' + via + '):', e.message || e);
+    }
+  }
+  return 0;
 }
 function getValorUVAFecha(fecha) {
   var s = S.config.uvaSerie || [];
@@ -7402,6 +7436,19 @@ async function testNotificacion() {
     }
 
     try {
+      // 2b. UVA oficial BCRA (completa los dias futuros ya publicados)
+      var nuevosBCRA = await fetchUVABCRA();
+      if (nuevosBCRA > 0) {
+        var _uvaHoyB = getValorUVAFecha(_isoFecha(new Date()));
+        if (_uvaHoyB) { S.config.uvaValor = _uvaHoyB; S.config.uvaFecha = _isoFecha(new Date()); }
+        save();
+        try { render(); } catch(eR) {}
+      }
+    } catch(eB) {
+      console.log('Error UVA BCRA:', eB.message || eB);
+    }
+
+    try {
       // 3. Fetch dolar blue
       var dolarData = null;
       try {
@@ -8332,6 +8379,7 @@ async function testNotificacion() {
           return false;
         });
     }
+    fetchUVABCRA().then(function(n){ if (n > 0) { save(); try { render(); } catch(eR) {} } });
     fetchUVA1()
       .catch(function(){ return false; })
       .then(function(ok){ return ok ? true : fetchUVA2().catch(function(){ return false; }); })
