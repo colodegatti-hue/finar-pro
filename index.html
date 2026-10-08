@@ -519,6 +519,17 @@ var authToken = null;
 var REFRESH_KEY = 'finar_refresh_token';
 var _refreshPromise = null;
 
+function _fetchTimeout(url, opts, ms) {
+  opts = opts || {};
+  if (typeof AbortController === 'undefined') return fetch(url, opts);
+  var ctrl = new AbortController();
+  var tm = setTimeout(function() { ctrl.abort(); }, ms || 20000);
+  opts.signal = ctrl.signal;
+  return fetch(url, opts).then(function(r) { clearTimeout(tm); return r; }, function(e) {
+    clearTimeout(tm);
+    throw (e && e.name === 'AbortError') ? new Error('timeout ' + Math.round((ms || 20000) / 1000) + 's') : e;
+  });
+}
 function guardarRefreshToken(rt) {
   if (!rt) return;
   try { localStorage.setItem(REFRESH_KEY, rt); } catch(e) {}
@@ -565,11 +576,11 @@ function refrescarSesion() {
   var rt = null;
   try { rt = localStorage.getItem(REFRESH_KEY); } catch(e) {}
   if (!rt) { console.warn('refrescarSesion: no hay refresh_token guardado, hay que volver a iniciar sesion'); return Promise.resolve(false); }
-  _refreshPromise = fetch(SUPA_URL + '/auth/v1/token?grant_type=refresh_token', {
+  _refreshPromise = _fetchTimeout(SUPA_URL + '/auth/v1/token?grant_type=refresh_token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY },
     body: JSON.stringify({ refresh_token: rt })
-  }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+  }, 20000).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
   .then(function(res) {
     if (res.ok && res.data && res.data.access_token) {
       authToken = res.data.access_token;
@@ -634,7 +645,7 @@ async function _supaRestRaw(method, path, body, useAuth, extraHeaders) {
   }
   var opts = { method: method, headers: headers };
   if (body) opts.body = JSON.stringify(body);
-  var r = await fetch(SUPA_URL + path, opts);
+  var r = await _fetchTimeout(SUPA_URL + path, opts, 20000);
   var txt = await r.text();
   var json = {};
   if (txt) { try { json = JSON.parse(txt); } catch(eJ) { json = { raw: txt }; } }
@@ -1136,6 +1147,15 @@ function conservarLocalPendiente(cloudData) {
   respaldar('finar_backup_local', S);
   return false;
 }
+function guardarErrorSync(motivo) {
+  try {
+    if (motivo) localStorage.setItem('finar_sync_err', JSON.stringify({ m: String(motivo).slice(0, 60), t: Date.now() }));
+    else localStorage.removeItem('finar_sync_err');
+  } catch(e) {}
+}
+function textoErrorSync() {
+  try { var e = JSON.parse(localStorage.getItem('finar_sync_err') || 'null'); return e && e.m ? ' (' + e.m + ')' : ''; } catch(e2) { return ''; }
+}
 function actualizarIndicadorSync() {
   try {
     var p = leerPendienteSync();
@@ -1151,7 +1171,7 @@ function actualizarIndicadorSync() {
     }
     if (el) {
       el.style.display = mostrar ? 'block' : 'none';
-      if (mostrar) el.textContent = '\u2601 Sin sincronizar - tocar para reintentar';
+      if (mostrar) el.textContent = '\u2601 Sin sincronizar' + textoErrorSync() + ' - tocar';
     }
   } catch(e) {}
 }
@@ -1163,13 +1183,17 @@ function reintentarSync(forzar) {
     actualizarIndicadorSync();
     return;
   }
-  if (_startupSyncLock) return;
+  if (_startupSyncLock) {
+    if (!forzar) return;
+    console.log('reintentarSync: arranque trabado, se fuerza la subida de datos locales');
+    _startupSyncLock = false;
+  }
   saveCloud(S);
 }
 async function saveCloud(data) {
   marcarPendienteSync();
-  if (!authToken || !currentUser) { console.log('saveCloud: sin sesion, queda pendiente'); actualizarIndicadorSync(); return; }
-  if (_startupSyncLock) { console.log('saveCloud bloqueado durante startup (queda pendiente)'); return; }
+  if (!authToken || !currentUser) { console.log('saveCloud: sin sesion, queda pendiente'); guardarErrorSync('sin sesion'); actualizarIndicadorSync(); return; }
+  if (_startupSyncLock) { console.log('saveCloud bloqueado durante startup (queda pendiente)'); guardarErrorSync('esperando arranque'); return; }
   var marca = (leerPendienteSync() || {}).t;
   try {
     var r = await supaRest('POST', '/rest/v1/user_data', {
@@ -1180,11 +1204,14 @@ async function saveCloud(data) {
     if (r && r.ok) {
       var p = leerPendienteSync();
       if (!p || p.t === marca) localStorage.removeItem(SYNC_PEND_KEY);
+      guardarErrorSync(null);
       console.log('saveCloud OK');
     } else {
-      console.log('saveCloud: respuesta ' + (r ? r.status : '?') + ', queda pendiente');
+      guardarErrorSync('HTTP ' + (r ? r.status : '?') + (r && r.data && (r.data.message || r.data.msg || r.data.code) ? ' ' + (r.data.message || r.data.msg || r.data.code) : ''));
+      console.log('saveCloud: respuesta ' + (r ? r.status : '?') + ', queda pendiente', r ? JSON.stringify(r.data) : '');
     }
   } catch(e) {
+    guardarErrorSync('red: ' + (e.message || e));
     console.log('Error guardando en nube (queda pendiente):', e.message);
   }
   actualizarIndicadorSync();
@@ -1480,6 +1507,21 @@ function guardarSerieUVA(arr) {
 }
 // Fuente oficial BCRA (variable 31 = UVA). Publica valores futuros hasta ~el dia 15.
 async function fetchUVABCRA() {
+  if (authToken) {
+    try {
+      var rE = await supaRest('GET', '/functions/v1/uva-bcra', null, true);
+      if (rE && rE.ok && rE.data && Array.isArray(rE.data.datos) && rE.data.datos.length) {
+        var cambiosE = guardarSerieUVA(rE.data.datos);
+        var ultE = ultimaFechaUVA();
+        console.log('UVA OK (servidor, fuente ' + rE.data.fuente + '): valores hasta ' + (ultE ? ultE.fecha : '?') + ', ' + cambiosE + ' nuevos' + (rE.data.errorBCRA ? ' [BCRA: ' + rE.data.errorBCRA + ']' : ''));
+        if (rE.data.fuente === 'bcra') return cambiosE;
+      } else {
+        console.log('UVA servidor fallo: HTTP ' + (rE ? rE.status : '?'));
+      }
+    } catch(eE) {
+      console.log('UVA servidor fallo:', eE.message || eE);
+    }
+  }
   var d1 = new Date(); d1.setDate(d1.getDate() - 10);
   var d2 = new Date(); d2.setDate(d2.getDate() + 45);
   var url = 'https://api.bcra.gob.ar/estadisticas/v4.0/monetarias/31?desde=' + _isoFecha(d1) + '&hasta=' + _isoFecha(d2);
