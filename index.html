@@ -1130,7 +1130,9 @@ function marcarPendienteSync() {
   try {
     var p = leerPendienteSync();
     var t0 = p && p.t0 ? p.t0 : Date.now();
-    localStorage.setItem(SYNC_PEND_KEY, JSON.stringify({ t0: t0, t: Date.now(), u: currentUser && currentUser.id ? currentUser.id : null }));
+    var u = currentUser && currentUser.id ? currentUser.id : (p && p.u ? p.u : null);
+    if (!u) return; // sin usuario no hay nada que subir
+    localStorage.setItem(SYNC_PEND_KEY, JSON.stringify({ t0: t0, t: Date.now(), u: u }));
   } catch(e) {}
 }
 function respaldar(clave, obj) {
@@ -1139,7 +1141,14 @@ function respaldar(clave, obj) {
 // Decide al cargar la nube: true = conservar datos locales (hay cambios sin subir)
 function conservarLocalPendiente(cloudData) {
   var p = leerPendienteSync();
-  if (p && !(p.u && currentUser && currentUser.id && p.u !== currentUser.id)) {
+  var localVacio = !S || ((S.tarjetas || []).length + (S.movimientos || []).length + (S.gastosTC || []).length + (S.prestamos || []).length) === 0;
+  var nubeConDatos = cloudData && ((cloudData.tarjetas || []).length + (cloudData.movimientos || []).length + (cloudData.gastosTC || []).length + (cloudData.prestamos || []).length) > 0;
+  if (p && (!p.u || !currentUser || p.u !== currentUser.id || (localVacio && nubeConDatos))) {
+    console.log('Pendiente descartado (sin usuario, de otro usuario o datos locales vacios): se usa la nube');
+    try { localStorage.removeItem(SYNC_PEND_KEY); } catch(e) {}
+    p = null;
+  }
+  if (p) {
     console.log('Hay cambios locales sin subir desde ' + new Date(p.t0 || p.t).toLocaleString() + ': se conservan y se suben a la nube');
     respaldar('finar_backup_nube', cloudData);
     return true;
@@ -1191,9 +1200,11 @@ function reintentarSync(forzar) {
   saveCloud(S);
 }
 async function saveCloud(data) {
+  // Antes de iniciar sesion o de cargar la nube no hay cambios del usuario que subir:
+  // la nube es la fuente de verdad en ese momento.
+  if (!authToken || !currentUser) { console.log('saveCloud: sin sesion, no se sube'); return; }
+  if (_startupSyncLock) { console.log('saveCloud: esperando datos de la nube, no se sube'); return; }
   marcarPendienteSync();
-  if (!authToken || !currentUser) { console.log('saveCloud: sin sesion, queda pendiente'); guardarErrorSync('sin sesion'); actualizarIndicadorSync(); return; }
-  if (_startupSyncLock) { console.log('saveCloud bloqueado durante startup (queda pendiente)'); guardarErrorSync('esperando arranque'); return; }
   var marca = (leerPendienteSync() || {}).t;
   try {
     var r = await supaRest('POST', '/rest/v1/user_data', {
@@ -1350,57 +1361,9 @@ var S = (function() {
       });
       if (!p.config.lastSync) p.config.lastSync = null;
       if (!p.cierresMes) p.cierresMes = [];
-      // Migration v3: use tc.ultimoPago as source of truth for pagadaHastaOffset
-      // cuotaActual is unreliable (old code set it to cuotasTotal on payment)
-      if (p.gastosTC && p.tarjetas) {
-        p.gastosTC.forEach(function(g) {
-          var tc = p.tarjetas.find(function(t){return t.id===g.tcId;});
-          if (!tc || !tc.ultimoPago) {
-            // No payment registered: nothing is paid
-            g.pagadaHastaOffset = null;
-            if (g.pendientes === 0) g.pendientes = g.cuotasTotal;
-            g.cuotaActual = 1;
-            return;
-          }
-          // Determine purchase cycle using basic date math (getCicloCompra not available yet)
-          var paidM = tc.ultimoPago.mes, paidY = tc.ultimoPago.anio;
-          var fc = new Date(g.fechaCompra + 'T12:00:00');
-          // Approximate purchase cycle = month of fechaCompra
-          // (close enough for migration - exact calc happens in getCicloCompra at render time)
-          var purchaseM = fc.getMonth(), purchaseY = fc.getFullYear();
-          // offset = months between purchase cycle and paid cycle
-          var offset = (paidY - purchaseY) * 12 + (paidM - purchaseM);
-          if (offset < 0) {
-            // Purchase is after the payment cycle  -  not yet paid
-            g.pagadaHastaOffset = null;
-            if (g.pendientes === 0) g.pendientes = g.cuotasTotal;
-            g.cuotaActual = 1;
-          } else if (offset >= g.cuotasTotal) {
-            // All cuotas paid
-            g.pagadaHastaOffset = g.cuotasTotal - 1;
-            g.pendientes = 0;
-            g.cuotaActual = g.cuotasTotal;
-          } else {
-            // Partial: offset cuotas paid (0 to offset)
-            g.pagadaHastaOffset = offset;
-            g.pendientes = g.cuotasTotal - (offset + 1);
-            g.cuotaActual = offset + 2; // next cuota to pay
-          }
-        });
-      }
-      // Migrate ultimoPago: recalculate correct billing cycle from payment date
+      // Historial de pagos por ciclo (antes solo existia ultimoPago)
       if (p.tarjetas) p.tarjetas.forEach(function(tc) {
-        if (tc.ultimoPago && tc.ultimoPago.fecha) {
-          var pf = new Date(tc.ultimoPago.fecha + 'T12:00:00');
-          var pfM = pf.getMonth(), pfY = pf.getFullYear();
-          // Find cycle whose vencimiento >= payment date
-          for (var di = -2; di <= 1; di++) {
-            var cm = pfM + di, cy = pfY;
-            if (cm < 0) { cm += 12; cy--; } if (cm > 11) { cm -= 12; cy++; }
-            var vTest = getVence(tc, cy, cm);
-            if (vTest && vTest >= pf) { tc.ultimoPago.mes = cm; tc.ultimoPago.anio = cy; break; }
-          }
-        }
+        if (!tc.pagos) tc.pagos = tc.ultimoPago ? [tc.ultimoPago] : [];
       });
       if (!p.catsGasto) p.catsGasto = defState().catsGasto;
       if (!p.catsIngreso) p.catsIngreso = defState().catsIngreso;
@@ -1413,7 +1376,7 @@ var S = (function() {
             : 0);
         }
       });
-      if (!p.tarjetas[0].limite) p.tarjetas.forEach(function(t) { t.limite = 500000; });
+      if (p.tarjetas && p.tarjetas[0] && !p.tarjetas[0].limite) p.tarjetas.forEach(function(t) { t.limite = 500000; });
       return p;
     }
   } catch(e) {}
@@ -1960,7 +1923,7 @@ function cerrarMes(y, m, saldoFinal) {
     compromisos: Math.round(comp),
     resultado: Math.round(ing - gas - comp),
     saldoFinal: Math.round(saldoFinal || saldoTotal()),
-    fecha: new Date().toISOString().slice(0,10)
+    fecha: fechaLocalISO(new Date())
   });
   // Keep max 24 months
   S.cierresMes.sort(function(a,b){ return a.anio!==b.anio?a.anio-b.anio:a.mes-b.mes; });
@@ -1988,7 +1951,7 @@ function recalcCierre(y, m) {
   existing.compromisos = Math.round(comp);
   existing.resultado = Math.round(ing - gas - comp);
   existing.saldoFinal = Math.round(saldoTotal());
-  existing.fecha = new Date().toISOString().slice(0,10);
+  existing.fecha = fechaLocalISO(new Date());
   save();
 }
 
@@ -2012,7 +1975,7 @@ function autoCheckCierre() {
       compromisos: Math.round(comp),
       resultado: Math.round(resultado),
       saldoFinal: Math.round(saldoFinal),
-      fecha: new Date().toISOString().slice(0,10),
+      fecha: fechaLocalISO(new Date()),
       auto: true
     });
     S.cierresMes.sort(function(a,b){ return a.anio!==b.anio?a.anio-b.anio:a.mes-b.mes; });
@@ -2168,6 +2131,49 @@ function getCuotasMes(tcId, y, m) {
   });
 }
 
+// Fecha local YYYY-MM-DD (toISOString usa UTC y despues de las 21 da el dia siguiente)
+function fechaLocalISO(d) {
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+// Pago registrado para un ciclo (y, m) de una tarjeta
+function pagoTCCiclo(tc, y, m) {
+  if (!tc) return null;
+  var ps = tc.pagos || [];
+  for (var i = ps.length - 1; i >= 0; i--) if (ps[i] && ps[i].mes === m && ps[i].anio === y) return ps[i];
+  if (tc.ultimoPago && tc.ultimoPago.mes === m && tc.ultimoPago.anio === y) return tc.ultimoPago;
+  return null;
+}
+// Deshace un pago: vuelve a impagas las cuotas de ese ciclo y quita el resto pasado a "Resumen anterior"
+function revertirPagoTC(tc, pago) {
+  var y = pago.anio, m = pago.mes;
+  var quedaOtro = (tc.pagos || []).some(function(p) { return p !== pago && p.mes === m && p.anio === y; });
+  if (!quedaOtro) {
+    S.gastosTC.forEach(function(g) {
+      if (g.tcId !== tc.id) return;
+      var ciclo = getCicloCompra(tc, g.fechaCompra);
+      var off = diffMeses(ciclo.y, ciclo.m, y, m);
+      if (off >= 0 && off < g.cuotasTotal && g.pagadaHastaOffset === off) {
+        g.pagadaHastaOffset = off - 1 >= 0 ? off - 1 : null;
+        g.pendientes = Math.min(g.cuotasTotal, (g.pendientes || 0) + 1);
+        if (g.cuotaActual > 1) g.cuotaActual = g.cuotaActual - 1;
+      }
+    });
+  }
+  if (pago.tipo === 'parcial') {
+    var fPago = new Date(pago.fecha + 'T12:00:00').getTime();
+    S.gastosTC = S.gastosTC.filter(function(g) {
+      if (g.tcId !== tc.id || !g.esResumenAnterior) return true;
+      if (pago.movId && g.pagoMovId) return g.pagoMovId !== pago.movId;
+      var dd = (new Date(g.fechaCompra + 'T12:00:00').getTime() - fPago) / 86400000;
+      return !(dd >= 0 && dd <= 3);
+    });
+  }
+  tc.pagos = (tc.pagos || []).filter(function(p) { return p !== pago; });
+  if (tc.ultimoPago === pago || (tc.ultimoPago && tc.ultimoPago.fecha === pago.fecha && tc.ultimoPago.monto === pago.monto)) {
+    tc.ultimoPago = tc.pagos.length ? tc.pagos[tc.pagos.length - 1] : null;
+  }
+}
 function consumoTCMes(tcId, y, m) {
   // Only count cuotas not yet paid
   return getCuotasMes(tcId, y, m).filter(function(g){ return !g.pagada; }).reduce(function(s,g){ return s+g.montoCuota; }, 0);
@@ -3264,7 +3270,7 @@ var APP = (function() {
       'Categor\u00EDas: ' + CATS_GASTO.join(', ') + '\n' +
       'Devuelve exactamente este JSON:\n' +
       '{"tipo":"gasto|ingreso|tc","desc":"descripcion","monto":0,"cat":"categoria","cuotas":1,"tcId":"id_o_null","cuentaId":"id_o_null","fecha":"YYYY-MM-DD"}\n' +
-      'Reglas: si menciona tarjeta o cuotas -> tipo=tc. "Lucas" o "luca" = 1000. "Palo" = 1000000. Fecha hoy: ' + TODAY.toISOString().slice(0,10);
+      'Reglas: si menciona tarjeta o cuotas -> tipo=tc. "Lucas" o "luca" = 1000. "Palo" = 1000000. Fecha hoy: ' + fechaLocalISO(TODAY);
     fetch('https://odd-dream-46ba.colodegatti.workers.dev', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -4438,7 +4444,7 @@ function generarAnalisisMes(ci) {
     // Register movement
     S.movimientos.push({
       id: uid(),
-      fecha: TODAY.toISOString().slice(0,10),
+      fecha: fechaLocalISO(TODAY),
       tipo: delta > 0 ? 'ingreso' : 'gasto',
       cat: 'Ajuste de saldo',
       desc: desc + ' (' + a.nombre + ')',
@@ -4472,7 +4478,7 @@ function generarAnalisisMes(ci) {
         '<div id="tr_preview" style="font-size:9px;color:var(--dim);margin-top:3px"></div>' +
       '</div>' +
       '<div class="fg"><label>Fecha</label>' +
-        '<input class="inp" type="date" id="tr_fecha" value="' + TODAY.toISOString().slice(0,10) + '"/>' +
+        '<input class="inp" type="date" id="tr_fecha" value="' + fechaLocalISO(TODAY) + '"/>' +
       '</div>' +
       '<div class="fg"><label>Descripcion (opcional)</label>' +
         '<input class="inp" id="tr_desc" placeholder="ej: Pase a Mercado Pago"/>' +
@@ -4708,7 +4714,7 @@ function generarAnalisisMes(ci) {
     var defTipo = defaultTipo || (m ? m.tipo : 'gasto');
     var gCats = defTipo === 'ingreso' ? getCatsIngreso() : getCatsGasto();
     openM('<div class="mh"></div><div class="mt">' + (m ? '? Editar' : '+ Nuevo') + ' movimiento</div>' +
-      '<div class="fg"><label>Fecha</label><input class="inp" type="date" id="mv_f" value="' + (m ? m.fecha : TODAY.toISOString().slice(0, 10)) + '"/></div>' +
+      '<div class="fg"><label>Fecha</label><input class="inp" type="date" id="mv_f" value="' + (m ? m.fecha : fechaLocalISO(TODAY)) + '"/></div>' +
       '<div class="fg"><label>Tipo</label><select class="inp" id="mv_t" onchange="APP.updMovCats()"><option value="gasto"' + (defTipo === 'gasto' ? ' selected' : '') + '>\uD83D\uDCE4 Gasto</option><option value="ingreso"' + (defTipo === 'ingreso' ? ' selected' : '') + '>\uD83D\uDCE5 Ingreso</option></select></div>' +
       '<div class="fg"><label>Categoría</label><select class="inp" id="mv_c">' + gCats.map(function(k) { return '<option value="' + k + '"' + (m && m.cat === k ? ' selected' : '') + '>' + getCatEmoji(k) + ' ' + k + '</option>'; }).join('') + '</select></div>' +
       '<div class="fg"><label>Concepto / Descripción</label><input class="inp" id="mv_d" placeholder="ej: Compra semanal" oninput="APP.onDescChange(this.value)" value="' + (m ? m.desc : '') + '"/></div>' +
@@ -5071,8 +5077,8 @@ function generarAnalisisMes(ci) {
       var cts = getCuotasMes(tc.id, tcY, tcM);
       var totRes = cts.reduce(function(s, g) { return s + g.montoCuota; }, 0);
       // tcPagada: paid in full this month
-      var tcPagada = tc.ultimoPago && tc.ultimoPago.mes===tcM && tc.ultimoPago.anio===tcY && tc.ultimoPago.tipo==='total';
-      var tcPagadaParcial = tc.ultimoPago && tc.ultimoPago.mes===tcM && tc.ultimoPago.anio===tcY && tc.ultimoPago.tipo==='parcial';
+      var tcPagada = pagoTCCiclo(tc,tcY,tcM) && pagoTCCiclo(tc,tcY,tcM).tipo==='total';
+      var tcPagadaParcial = pagoTCCiclo(tc,tcY,tcM) && pagoTCCiclo(tc,tcY,tcM).tipo==='parcial';
       // tcVencida: past due AND not paid this month
       var tcVencida = !esFut && dV < 0 && totRes > 0 && !tcPagada && !tcPagadaParcial;
       var consumo = consumoTCMes(tc.id, tcY, tcM);
@@ -5086,7 +5092,7 @@ function generarAnalisisMes(ci) {
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">' +
           '<div><div style="font-size:14px;font-weight:800;color:' + tc.color + '">' + tc.nombre + '</div>' +
             '<div style="font-size:9px;color:var(--dim);margin-top:2px">Cierre: ' + (tc.cierreDia ? 'dia ' + tc.cierreDia : tc.cierreRegla==='2do_jueves'?'2do jueves':'penult. jueves') + ' . Vence: ' + (tc.venceDia ? 'dia '+tc.venceDia : '1er miercoles') + '</div>' +
-            (tc.ultimoPago && tc.ultimoPago.mes===tcM && tc.ultimoPago.anio===tcY ? '<div style="font-size:9px;color:var(--green);font-weight:700;margin-top:2px">Pagado ' + tc.ultimoPago.tipo + ' el ' + fmtDate(new Date(tc.ultimoPago.fecha + 'T12:00:00')) + '</div>' : '') +
+            (pagoTCCiclo(tc,tcY,tcM) ? '<div style="font-size:9px;color:var(--green);font-weight:700;margin-top:2px">Pagado ' + pagoTCCiclo(tc,tcY,tcM).tipo + ' el ' + fmtDate(new Date(pagoTCCiclo(tc,tcY,tcM).fecha + 'T12:00:00')) + '</div>' : '') +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:5px">' +
             (!esFut ? '<span class="pill ' + (tcPagada ? 'pill-g' : tcPagadaParcial ? 'pill-y' : tcVencida ? 'pill-r' : dV <= 3 && dV >= 0 ? 'pill-r' : dV === 0 ? 'pill-r' : 'pill-d') + '">' + (tcPagada ? 'Pagada' : tcPagadaParcial ? 'Pago parcial' : tcVencida ? 'VENCIDA!' : dV < 0 ? 'Vencio' : dV === 0 ? 'HOY!' : dV + 'd') + '</span>' : '') +
@@ -5121,10 +5127,10 @@ function generarAnalisisMes(ci) {
         '</div>' : '') +
 
         // Pagada este mes  -  green banner
-        (tc.ultimoPago && tc.ultimoPago.mes===tcM && tc.ultimoPago.anio===tcY && tc.ultimoPago.tipo==='total' ? '<div style="background:rgba(0,200,150,.15);border:1px solid rgba(0,200,150,.4);border-radius:var(--rs);padding:10px;margin-bottom:10px;display:flex;align-items:center;gap:8px">' +
+        (pagoTCCiclo(tc,tcY,tcM) && pagoTCCiclo(tc,tcY,tcM).tipo==='total' ? '<div style="background:rgba(0,200,150,.15);border:1px solid rgba(0,200,150,.4);border-radius:var(--rs);padding:10px;margin-bottom:10px;display:flex;align-items:center;gap:8px">' +
           '<div style="font-size:20px">OK</div>' +
           '<div><div style="font-size:12px;font-weight:800;color:var(--green)">Tarjeta pagada este mes</div>' +
-          '<div style="font-size:10px;color:var(--dim);margin-top:2px">Pago total el ' + fmtDate(new Date(tc.ultimoPago.fecha + 'T12:00:00')) + ' . ' + fmt(tc.ultimoPago.monto) + '</div></div>' +
+          '<div style="font-size:10px;color:var(--dim);margin-top:2px">Pago total el ' + fmtDate(new Date(pagoTCCiclo(tc,tcY,tcM).fecha + 'T12:00:00')) + ' . ' + fmt(pagoTCCiclo(tc,tcY,tcM).monto) + '</div></div>' +
         '</div>' : '') +
         // Saldo a pagar + Ver consumos collapsible
         (totRes > 0 ? '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 10px;border-bottom:1px solid var(--border)">' +
@@ -5233,7 +5239,7 @@ function generarAnalisisMes(ci) {
     html += '<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Tarjeta</div>';
     html += '<select class="inp" id="sim_tc" style="margin-bottom:0">' + simuTcOpts + '</select></div>';
     html += '<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Fecha de compra</div>';
-    html += '<input class="inp" type="date" id="sim_fecha" value="' + TODAY.toISOString().slice(0,10) + '" style="margin-bottom:0"/></div>';
+    html += '<input class="inp" type="date" id="sim_fecha" value="' + fechaLocalISO(TODAY) + '" style="margin-bottom:0"/></div>';
     html += '</div>';
     html += '<button class="btn btn-p" style="width:100%;margin-bottom:10px" onclick="APP.simularCompra()">\uD83D\uDD0D Simular impacto</button>';
     html += '<div id="sim_resultado"></div>';
@@ -5334,12 +5340,12 @@ function generarAnalisisMes(ci) {
     html += '<select class="inp" id="pay_cuenta">' + cuentasOpts + '</select>';
     html += '</div>';
     html += '<div class="fg"><label>Fecha del pago</label>';
-    html += '<input class="inp" type="date" id="pay_fecha" value="' + TODAY.toISOString().slice(0,10) + '"/>';
+    html += '<input class="inp" type="date" id="pay_fecha" value="' + fechaLocalISO(TODAY) + '"/>';
     html += '</div>';
     html += '<div class="fg"><label>Aplicar al ciclo de</label>';
     var mOpts = '';
     for (var di3 = -2; di3 <= 2; di3++) {
-      var mOpt = TM + di3, yOpt = TY;
+      var mOpt = tcM + di3, yOpt = tcY;
       if (mOpt < 0) { mOpt += 12; yOpt--; } if (mOpt > 11) { mOpt -= 12; yOpt++; }
       var selOpt = di3 === 0 ? ' selected' : '';
       mOpts += '<option value="' + yOpt + '-' + (mOpt < 10 ? '0' : '') + mOpt + '"' + selOpt + '>' + MESES[mOpt] + ' ' + yOpt + '</option>';
@@ -5416,74 +5422,52 @@ function generarAnalisisMes(ci) {
     }
 
     // 2. Registrar movimiento
+    var movPagoId = uid();
     S.movimientos.push({
-      id: uid(), fecha: fecha, tipo: 'gasto',
+      id: movPagoId, fecha: fecha, tipo: 'gasto',
       cat: 'Tarjeta de credito',
       desc: 'Pago ' + tc.nombre + (esPagoTotal ? ' - Total' : ' - Parcial'),
       formaPago: 'Debito ' + cuenta.nombre.split(' ')[0],
       cuentaId: cuentaId, monto: montoPago
     });
 
-    // 3. Registrar el pago en la tarjeta (para mostrar "Pagado" y la fecha)
-    // Determine which billing cycle this payment covers
-    // Find the cycle whose vencimiento is closest to (and after) the payment date
-    var pagoFecha = new Date(fecha + 'T12:00:00');
-    // Leer ciclo seleccionado por el usuario
-    var payCicloSel = document.getElementById('pay_ciclo');
+    // 3. Ciclo al que se aplica el pago (por defecto, el que se esta viendo)
     var cicloMes = tcM, cicloAnio = tcY;
+    var payCicloSel = document.getElementById('pay_ciclo');
     if (payCicloSel && payCicloSel.value) {
       var parts = payCicloSel.value.split('-');
-      cicloAnio = parseInt(parts[0]);
-      cicloMes = parseInt(parts[1]);
-    } else {
-      for (var di2 = -2; di2 <= 1; di2++) {
-        var cm2 = tcM + di2, cy2 = tcY;
-        if (cm2 < 0) { cm2 += 12; cy2--; } if (cm2 > 11) { cm2 -= 12; cy2++; }
-        var venceTest = getVence(tc, cy2, cm2);
-        if (venceTest && venceTest >= pagoFecha) { cicloMes = cm2; cicloAnio = cy2; break; }
-      }
+      cicloAnio = parseInt(parts[0], 10);
+      cicloMes = parseInt(parts[1], 10);
     }
-    tc.ultimoPago = {fecha: fecha, monto: montoPago, tipo: esPagoTotal ? 'total' : 'parcial', mes: cicloMes, anio: cicloAnio};
+    var pagoReg = {fecha: fecha, monto: montoPago, tipo: esPagoTotal ? 'total' : 'parcial', mes: cicloMes, anio: cicloAnio, movId: movPagoId};
+    if (!tc.pagos) tc.pagos = [];
+    tc.pagos.push(pagoReg);
+    tc.ultimoPago = pagoReg;
 
-    // 4. Solo avanzar la cuota del MES ACTUAL en cada compra
-    //    NO tocar cuotas de meses futuros  -  esas siguen pendientes
-    var cuotasEsteMes = getCuotasMes(tcId, TY, TM);
-    if (esPagoTotal) {
-      // Advance each purchase by 1 cuota (mark current cycle cuota as paid)
-      cuotasEsteMes.forEach(function(g) {
-        var orig = S.gastosTC.find(function(x){return x.id===g.id;});
-        if (orig && orig.pendientes > 0) {
-          orig.pendientes = orig.pendientes - 1;
-          orig.cuotaActual = orig.cuotaActual + 1;
-        }
-      });
-    } else {
-      // Pago parcial: create "Resumen anterior" for remainder, advance cuotas
-      if (montoResto > 0) {
-        // Push remainder to next month as resumen anterior
-        var fechaNextCycle = new Date(fecha);
-        fechaNextCycle.setDate(fechaNextCycle.getDate() + 1); // 1 day after payment = next cycle
-        S.gastosTC.push({
-          id: uid(), tcId: tcId,
-          desc: 'Resumen anterior ' + tc.nombre,
-          fechaCompra: fechaNextCycle.toISOString().slice(0,10),
-          monto: montoResto, cuotasTotal: 1, cuotaActual: 1,
-          pendientes: 1, montoCuota: montoResto, esResumenAnterior: true
-        });
+    // 4. Marcar como pagadas las cuotas de ESE ciclo (no las del mes actual)
+    getCuotasMes(tcId, cicloAnio, cicloMes).forEach(function(g) {
+      var orig = S.gastosTC.find(function(x){return x.id===g.id;});
+      if (!orig) return;
+      var ciclo = getCicloCompra(tc, orig.fechaCompra);
+      var off = diffMeses(ciclo.y, ciclo.m, cicloAnio, cicloMes);
+      if (orig.pagadaHastaOffset === undefined || orig.pagadaHastaOffset === null || off > orig.pagadaHastaOffset) {
+        orig.pagadaHastaOffset = off;
+        if (orig.pendientes > 0) orig.pendientes = orig.pendientes - 1;
+        orig.cuotaActual = Math.min(orig.cuotasTotal, off + 2);
       }
-      // Advance this month's cuotas
-      cuotasEsteMes.forEach(function(g) {
-        var orig = S.gastosTC.find(function(x){return x.id===g.id;});
-        if (orig && orig.pendientes > 0) {
-          orig.pendientes = orig.pendientes - 1;
-          orig.cuotaActual = orig.cuotaActual + 1;
-          // Record which offset was paid explicitly
-          var ciclo = getCicloCompra(tc, orig.fechaCompra);
-          var thisOffset = diffMeses(ciclo.y, ciclo.m, tcY, tcM);
-          if (orig.pagadaHastaOffset === undefined || orig.pagadaHastaOffset === null || thisOffset > orig.pagadaHastaOffset) {
-            orig.pagadaHastaOffset = thisOffset;
-          }
-        }
+    });
+
+    // 5. Pago parcial: el resto pasa al ciclo siguiente como "Resumen anterior"
+    if (!esPagoTotal && montoResto > 0) {
+      var cierreCiclo = getCierre(tc, cicloAnio, cicloMes);
+      var fr = cierreCiclo ? new Date(cierreCiclo.getFullYear(), cierreCiclo.getMonth(), cierreCiclo.getDate() + 1) : new Date();
+      S.gastosTC.push({
+        id: uid(), tcId: tcId, cat: 'Otros',
+        desc: 'Resumen anterior ' + tc.nombre,
+        fechaCompra: fechaLocalISO(fr),
+        monto: montoResto, cuotasTotal: 1, cuotaActual: 1,
+        pendientes: 1, montoCuota: montoResto, esResumenAnterior: true,
+        pagoMovId: movPagoId, pagadaHastaOffset: null
       });
     }
 
@@ -5780,7 +5764,9 @@ function generarAnalisisMes(ci) {
     html += '<div class="mh"></div>';
     html += '<div class="mt" style="text-align:center;font-size:18px">Reabrir factura?</div>';
     html += '<div style="text-align:center;font-size:13px;color:var(--dim);padding:10px 0 14px">';
-    html += 'Esta factura ya fue pagada el <b>' + fmtDate(new Date(tc.ultimoPago.fecha + 'T12:00:00')) + '</b>.<br>';
+    var pagoV = pagoTCCiclo(tc, tcY, tcM) || tc.ultimoPago;
+    if (!pagoV) { modalTC(tcId); return; }
+    html += 'La factura de ' + MESES[pagoV.mes] + ' ' + pagoV.anio + ' ya fue pagada el <b>' + fmtDate(new Date(pagoV.fecha + 'T12:00:00')) + '</b>.<br>';
     html += 'Si reabris, el pago registrado se elimina y la tarjeta vuelve a estado impaga.';
     html += '</div>';
     html += '<div style="display:flex;gap:10px">';
@@ -5792,29 +5778,23 @@ function generarAnalisisMes(ci) {
 
   function confirmarReabrirTC(tcId) {
     var tc = S.tarjetas.find(function(t){return t.id===tcId;});
-    if (!tc || !tc.ultimoPago) { closeM(); return; }
-    // Find and delete the payment movement
-    var pagoFecha = tc.ultimoPago.fecha;
-    var pagoMonto = tc.ultimoPago.monto;
+    var pago = tc ? (pagoTCCiclo(tc, tcY, tcM) || tc.ultimoPago) : null;
+    if (!tc || !pago) { closeM(); return; }
+    // Borrar el movimiento del pago y devolver el saldo a la cuenta
     var movPago = S.movimientos.find(function(m) {
-      return m.cat === 'Tarjeta de credito' &&
-             m.fecha === pagoFecha &&
-             Math.abs(m.monto - pagoMonto) < 1;
+      if (pago.movId) return m.id === pago.movId;
+      return m.cat === 'Tarjeta de credito' && m.fecha === pago.fecha && Math.abs(m.monto - pago.monto) < 1;
     });
     if (movPago) {
-      // Restore account balance
       var cta = S.cuentas.find(function(a){return a.id===movPago.cuentaId;});
       if (cta) cta.saldo += movPago.monto;
       S.movimientos = S.movimientos.filter(function(m){return m.id!==movPago.id;});
     }
-    // Reset ultimoPago
-    tc.ultimoPago = null;
+    revertirPagoTC(tc, pago);
     save(); closeM(); render();
     var t = document.getElementById('TOAST');
     t.textContent = 'Factura reabierta. Pago eliminado de movimientos.';
     t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},3000);
-    // Open cargar compra immediately
-    APP.modalTC(tcId);
   }
 
   function toggleCuotas(tcId) {
@@ -5854,7 +5834,7 @@ function generarAnalisisMes(ci) {
         '<select class="inp" id="tc_cat">' +
           (S.catsTC||['Supermercado','Restaurantes','Ropa','Electronica','Salud','Educacion','Viajes','Combustible','Entretenimiento','Servicios','Compras','Otros']).map(function(cat){ return '<option value="'+cat+'">'+cat+'</option>'; }).join('') +
         '</select></div>' +
-      '<div class="fg"><label>Fecha real de compra</label><input class="inp" type="date" id="tc_f" value="' + TODAY.toISOString().slice(0,10) + '"/></div>' +
+      '<div class="fg"><label>Fecha real de compra</label><input class="inp" type="date" id="tc_f" value="' + fechaLocalISO(TODAY) + '"/></div>' +
       '<div style="margin-top:4px"><button style="width:100%;background:var(--s3);border:1px solid var(--border);border-radius:8px;color:var(--dim);font-size:11px;font-weight:700;padding:7px;cursor:pointer;font-family:inherit" onclick="APP.sugerirPeriodoTC()">Calcular ciclo de facturacion</button></div>' +
       '<div class="fg"><label>Monto total ($)</label>' +
         '<input class="inp" type="number" id="tc_m" placeholder="0" oninput="APP.calcTCPreview()"/>' +
@@ -6337,7 +6317,7 @@ function generarAnalisisMes(ci) {
     html += '<div style="font-size:9px;color:var(--dim);margin-top:2px">Mes al que corresponde esta cuota</div>';
     html += '</div>';
     html += '<div class="fg"><label>Fecha del pago</label>';
-    html += '<input class="inp" type="date" id="pp_fecha" value="' + TODAY.toISOString().slice(0,10) + '"/>';
+    html += '<input class="inp" type="date" id="pp_fecha" value="' + fechaLocalISO(TODAY) + '"/>';
     html += '</div>';
     html += '<div class="alert a-b" style="margin-bottom:12px"><div class="a-icon">i</div>';
     html += '<div><div class="a-title">Que pasa al confirmar</div>';
@@ -7579,7 +7559,7 @@ async function testNotificacion() {
       if (dolarData && dolarData.venta) {
         S.config.dolarBlue = dolarData.venta;
         S.config.dolarBlueCompra = dolarData.compra;
-        S.config.dolarBlueFecha = dolarData.fecha || new Date().toISOString().slice(0,10);
+        S.config.dolarBlueFecha = dolarData.fecha || fechaLocalISO(new Date());
         save();
         console.log("Dolar blue: $" + dolarData.venta + " / $" + dolarData.compra);
       }
@@ -7663,7 +7643,7 @@ async function testNotificacion() {
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
-    a.download = 'FinAR-Pro-backup-' + new Date().toISOString().slice(0,10) + '.json';
+    a.download = 'FinAR-Pro-backup-' + fechaLocalISO(new Date()) + '.json';
     a.click();
     URL.revokeObjectURL(url);
     toast('Backup exportado OK');
@@ -8351,7 +8331,7 @@ async function testNotificacion() {
             var precioAnterior = ced.precioActual || 0;
             ced.precioActual = Math.round(price * tc / ratio);
             ced.precioUSD = price;
-            ced.ultimaActualizacion = new Date().toISOString().slice(0,10);
+            ced.ultimaActualizacion = fechaLocalISO(new Date());
             if (precioAnterior > 0 && ced.precioActual !== precioAnterior) updated++;
             else if (precioAnterior === 0) updated++;
           }
@@ -8732,7 +8712,7 @@ async function testNotificacion() {
       var t = document.getElementById('TOAST');
       if (t) { t.textContent = msg; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2200); }
     },
-    openM: openM, closeM: closeM
+    openM: openM, closeM: closeM, closeAlert: closeAlert, tcCicloVisto: function() { return {y: tcY, m: tcM}; }
   };
 })();
 window.APP = APP;
@@ -8896,9 +8876,8 @@ document.addEventListener('click', function(e) {
     var _tcId = btn.getAttribute('data-tcid');
     var _tc = S.tarjetas.find(function(t){return t.id===_tcId;});
     // Use global tcM/tcY (defined in app state) for cycle comparison
-    var _curM = typeof tcM !== 'undefined' ? tcM : TM;
-    var _curY = typeof tcY !== 'undefined' ? tcY : TY;
-    if (_tc && _tc.ultimoPago && _tc.ultimoPago.mes===_curM && _tc.ultimoPago.anio===_curY) {
+    var _cv = APP.tcCicloVisto ? APP.tcCicloVisto() : {y: TY, m: TM};
+    if (_tc && pagoTCCiclo(_tc, _cv.y, _cv.m)) {
       APP.modalReabrirTC(_tcId);
     } else {
       APP.modalTC(_tcId);
@@ -8962,40 +8941,13 @@ function confirmDelYes() {
     // If this movement was a TC payment, reverse completely
     if (mvDel && mvDel.cat === 'Tarjeta de credito') {
       S.tarjetas.forEach(function(tc) {
-        if (tc.ultimoPago && tc.ultimoPago.fecha === mvDel.fecha &&
-            Math.abs(tc.ultimoPago.monto - mvDel.monto) < 1) {
-          var wasPartial = tc.ultimoPago.tipo === 'parcial';
-          var pagoMes = tc.ultimoPago.mes;
-          var pagoAnio = tc.ultimoPago.anio;
-          tc.ultimoPago = null;
-          // Revert cuota advance for this card's purchases in that cycle
-          S.gastosTC.forEach(function(g) {
-            if (g.tcId !== tc.id) return;
-            var ciclo = getCicloCompra(tc, g.fechaCompra);
-            var offset = diffMeses(ciclo.y, ciclo.m, pagoAnio, pagoMes);
-            if (offset >= 0 && offset < g.cuotasTotal) {
-              // This purchase had a cuota in the paid cycle
-              if (g.pagadaHastaOffset !== undefined && g.pagadaHastaOffset !== null && g.pagadaHastaOffset >= offset) {
-                g.pagadaHastaOffset = offset - 1;
-                if (g.pagadaHastaOffset < 0) g.pagadaHastaOffset = null;
-              }
-              if (g.cuotaActual > 1) g.cuotaActual = g.cuotaActual - 1;
-              g.pendientes = g.pendientes + 1;
-            }
-          });
-          // If partial: remove "Resumen anterior" carryover from next cycle
-          if (wasPartial) {
-            S.gastosTC = S.gastosTC.filter(function(g) {
-              if (g.tcId !== tc.id) return true;
-              if (!g.esResumenAnterior) return true;
-              // Remove resumen anterior created in the cycle AFTER the payment cycle
-              var gFecha = new Date(g.fechaCompra + 'T12:00:00');
-              var pagoFechaDate = new Date(mvDel.fecha + 'T12:00:00');
-              var diffDays = (gFecha.getTime() - pagoFechaDate.getTime()) / (1000*60*60*24);
-              return !(diffDays >= 0 && diffDays <= 3);
-            });
-          }
+        var lista = (tc.pagos && tc.pagos.length) ? tc.pagos : (tc.ultimoPago ? [tc.ultimoPago] : []);
+        var pago = null;
+        for (var ip = lista.length - 1; ip >= 0; ip--) {
+          var pp = lista[ip];
+          if (pp && ((pp.movId && pp.movId === mvDel.id) || (!pp.movId && pp.fecha === mvDel.fecha && Math.abs(pp.monto - mvDel.monto) < 1))) { pago = pp; break; }
         }
+        if (pago) { if (!tc.pagos) tc.pagos = [pago]; revertirPagoTC(tc, pago); }
       });
     }
     S.movimientos = S.movimientos.filter(function(x){return x.id!==id;});
