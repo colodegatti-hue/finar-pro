@@ -892,6 +892,18 @@ async function checkGmailCallback() {
   }
 }
 
+function toast(msg) {
+  var t = document.getElementById('TOAST');
+  if (!t) { console.log('[toast]', msg); return; }
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2500);
+}
+function showAlert(msg) {
+  var wrap = document.getElementById('ALERT_WRAP'), m = document.getElementById('ALERT_MSG');
+  if (!wrap || !m) { toast(msg); return; }
+  m.textContent = msg; wrap.style.display = 'flex';
+}
+function renderMain() { try { APP.render(); } catch(e) { console.log('renderMain:', e.message); } }
 function gmailToast(msg) {
   if (typeof toast === "function") { toast(msg); }
   else if (typeof showAlert === "function") { showAlert(msg); }
@@ -1227,6 +1239,13 @@ async function saveCloud(data) {
   }
   actualizarIndicadorSync();
 }
+var _subidaTimer = null;
+function programarSubidaNube() {
+  if (!authToken || !currentUser || _startupSyncLock) return;
+  marcarPendienteSync(); // si la app se cierra antes de subir, queda pendiente y se sube al abrir
+  clearTimeout(_subidaTimer);
+  _subidaTimer = setTimeout(function() { saveCloud(S); }, 1200);
+}
 setInterval(function() { reintentarSync(false); }, 60000);
 setInterval(actualizarIndicadorSync, 20000);
 document.addEventListener('visibilitychange', function() { if (!document.hidden) setTimeout(function() { reintentarSync(false); }, 1500); });
@@ -1387,7 +1406,7 @@ function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify(S));
     if (supabase) {
-      saveCloud(S);
+      programarSubidaNube();
     }
     // Update Android widget with fresh data
     try { updateWidget(); } catch(e) {}
@@ -3274,7 +3293,7 @@ var APP = (function() {
     fetch('https://odd-dream-46ba.colodegatti.workers.dev', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({apiKey: 'sk-ant-api03-placeholder', model: 'claude-sonnet-4-5-20241022', max_tokens: 512, messages: [{role: 'user', content: prompt}]})
+      body: JSON.stringify({apiKey: 'sk-ant-api03-placeholder', model: 'claude-sonnet-5-5', max_tokens: 512, messages: [{role: 'user', content: prompt}]})
     }).then(function(r){return r.json();}).then(function(data){
       try {
         var txt = data.content && data.content[0] ? data.content[0].text : '';
@@ -3317,7 +3336,7 @@ var APP = (function() {
         if (p.tipo==='gasto') cuenta.saldo -= monto; else cuenta.saldo += monto;
         S.movimientos.push({id: uid(), fecha: p.fecha, tipo: p.tipo, cat: p.cat, desc: p.desc, monto: monto, cuentaId: cuenta.id});
       }
-      save(); closeModal(); render();
+      save(); closeM(); render();
       showAlert('\u2705 ' + p.desc + ' cargado');
     } catch(e) { showAlert('Error al cargar'); }
   }
@@ -3402,17 +3421,6 @@ var APP = (function() {
   }
 
   
-  function setPresupModal(catName) {
-    var lim = +document.getElementById("modal_presup_lim").value;
-    if (!lim || lim <= 0) { toast("Ingresa un limite valido"); return; }
-    if (!S.presupuestos) S.presupuestos = [];
-    var exists = S.presupuestos.filter(function(p){ return p.cat === catName; });
-    if (exists.length > 0) { exists[0].limite = lim; }
-    else { S.presupuestos.push({id: uid(), cat: catName, limite: lim}); }
-    save(); closeM(); render();
-    toast("Presupuesto de " + catName + " guardado");
-  }
-
   function detalleCategoria(catName) {
     var y = viewY, m = viewM;
     // Movimientos de esta categoria en el mes actual
@@ -8002,7 +8010,7 @@ async function testNotificacion() {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         apiKey: 'sk-ant-api03-placeholder',
-        model: 'claude-sonnet-4-5-20241022',
+        model: 'claude-sonnet-5-5',
         max_tokens: 1024,
         tools: [{type: 'web_search_20250305', name: 'web_search'}],
         messages: [{
@@ -8162,7 +8170,7 @@ async function testNotificacion() {
     
     // Show CSV as printable overlay (same approach as PDF)
     var htmlCSV = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>FinAR Pro CSV</title>';
-    htmlCSV += '<style>body{font-family:monospace;font-size:11px;padding:10px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:4px 6px;text-align:left}th{background:#0EA5E9;color:#fff;font-size:10px}</style></head><body>';
+    htmlCSV += '<style>.csvwrap{font-family:monospace;font-size:11px;padding:10px;color:#111;background:#fff}.csvwrap h3{color:#111}.csvwrap table{border-collapse:collapse;width:100%}.csvwrap th,.csvwrap td{border:1px solid #ddd;padding:4px 6px;text-align:left;color:#111}.csvwrap th{background:#0EA5E9;color:#fff;font-size:10px}</style></head><body><div class="csvwrap">';
     htmlCSV += '<h3>FinAR Pro - Movimientos</h3>';
     htmlCSV += '<table><tr>' + rows[0].map(function(h){return '<th>'+h+'</th>';}).join('') + '</tr>';
     for (var ri = 1; ri < rows.length; ri++) {
@@ -8170,7 +8178,7 @@ async function testNotificacion() {
         return '<td' + (ci===6?' style="text-align:right"':'') + '>' + (ci===6?fmt(v):v) + '</td>';
       }).join('') + '</tr>';
     }
-    htmlCSV += '</table></body></html>';
+    htmlCSV += '</table></div></body></html>';
     
     var overlay = document.createElement('div');
     overlay.id = 'PDF_OVERLAY';
