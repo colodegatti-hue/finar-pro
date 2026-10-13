@@ -6172,7 +6172,7 @@ function generarAnalisisMes(ci) {
         html += '<div><span style="color:var(--green);font-weight:700">Cuota ' + pg.cuotaN + '</span>';
         html += '<span style="color:var(--dim);margin-left:6px">' + mesNom + tipoLabel + '</span></div>';
         html += '<div style="font-family:monospace;color:var(--text)">' + fmt(pg.monto) + '</div>';
-        html += '<button style="font-size:9px;color:var(--red);background:none;border:1px solid var(--red);border-radius:6px;padding:2px 7px;cursor:pointer;font-family:inherit" onclick="APP.revertirPagoPrest(' + JSON.stringify(p.id) + ',' + pg.cuotaN + ')">Revertir</button>';
+        html += '<button style="font-size:9px;color:var(--red);background:none;border:1px solid var(--red);border-radius:6px;padding:2px 7px;cursor:pointer;font-family:inherit" onclick="APP.revertirPagoPrest(\'' + p.id + '\',' + pg.cuotaN + ')">Revertir</button>';
         html += '</div>';
       });
       html += '</div></div>';
@@ -6346,23 +6346,37 @@ function generarAnalisisMes(ci) {
     if (!p) return;
     var pg = p.pagos ? p.pagos.find(function(x){return x.cuotaN===cuotaN;}) : null;
     if (!pg) { showAlert('Pago no encontrado'); return; }
-    // Confirmar
-    var ok = confirm('Revertir cuota ' + cuotaN + ' de ' + p.nombre + ' por ' + fmt(pg.monto) + '?\nEsto devolvera el dinero a la cuenta y eliminara el registro del pago.');
-    if (!ok) return;
+    var html = '<div class="mh"></div>' +
+      '<div class="mt" style="text-align:center">Revertir cuota ' + cuotaN + '?</div>' +
+      '<div style="text-align:center;font-size:12px;color:var(--dim);padding:8px 0 14px">' + p.nombre + ' . ' + fmt(pg.monto) + '<br>' +
+      'Se devuelve el dinero a la cuenta y se elimina el registro del pago.</div>' +
+      '<div style="display:flex;gap:10px">' +
+        '<button class="btn btn-s" style="flex:1" onclick="APP.closeM()">Cancelar</button>' +
+        '<button class="btn btn-p" style="flex:1;background:var(--red)" onclick="APP.confirmarRevertirPagoPrest(\'' + prestId + '\',' + cuotaN + ')">Revertir</button>' +
+      '</div>';
+    openM(html);
+  }
+
+  function confirmarRevertirPagoPrest(prestId, cuotaN) {
+    var p = S.prestamos.find(function(x){return x.id===prestId;});
+    if (!p) { closeM(); return; }
+    var pg = p.pagos ? p.pagos.find(function(x){return x.cuotaN===cuotaN;}) : null;
+    if (!pg) { closeM(); showAlert('Pago no encontrado'); return; }
     // 1. Devolver saldo a la cuenta
     var cuenta = S.cuentas.find(function(a){return a.id===pg.cuentaId;});
-    if (cuenta) cuenta.saldo = cuenta.saldo + pg.monto;
-    // 2. Eliminar el movimiento asociado
-    S.movimientos = S.movimientos.filter(function(m){
-      return !(m.cat === 'Prestamo' && m.monto === pg.monto && m.fecha === pg.fecha);
-    });
+    if (cuenta) cuenta.saldo = Math.round((cuenta.saldo + pg.monto) * 100) / 100;
+    // 2. Eliminar SOLO el movimiento de esta cuota
+    var desc = 'Cuota ' + cuotaN + ' - ' + p.nombre;
+    var mv = S.movimientos.find(function(m){ return m.cat === 'Prestamo' && m.desc === desc; }) ||
+             S.movimientos.find(function(m){ return m.cat === 'Prestamo' && Math.abs(m.monto - pg.monto) < 0.01 && m.fecha === pg.fecha; });
+    if (mv) S.movimientos = S.movimientos.filter(function(m){ return m.id !== mv.id; });
     // 3. Revertir el prestamo
     p.pagos = p.pagos.filter(function(x){return x.cuotaN !== cuotaN;});
-    p.cuotaN = Math.max(1, cuotaN);
-    p.ultimoPago = p.pagos.length > 0 ? p.pagos[p.pagos.length-1] : null;
-    save();
-    render();
-    showAlert('Cuota ' + cuotaN + ' revertida. Saldo devuelto a la cuenta.');
+    p.cuotaN = Math.max(1, Math.min(p.cuotaN, cuotaN));
+    var ult = p.pagos.length > 0 ? p.pagos[p.pagos.length-1] : null;
+    p.ultimoPago = ult ? {anio: ult.anio, mes: ult.mes, fecha: ult.fecha, cuentaId: ult.cuentaId} : null;
+    save(); closeM(); render();
+    toast('Cuota ' + cuotaN + ' revertida. Saldo devuelto a la cuenta.');
   }
 
   function confirmarPagarPrest(id) {
@@ -8696,7 +8710,7 @@ async function testNotificacion() {
     modalMov: modalMov, modalTC: modalTC, modalAddCuenta: modalAddCuenta, modalTransferencia: modalTransferencia, confirmarTransferencia: confirmarTransferencia, previewTransferencia: previewTransferencia, modalAjusteSaldo: modalAjusteSaldo, confirmarAjusteSaldo: confirmarAjusteSaldo,
     modalEditCuenta: modalEditCuenta, modalAddPrest: modalAddPrest,
     modalPagarPrest: modalPagarPrest,
-    modalAddTarjeta: modalAddTarjeta, modalEditTarjeta: modalEditTarjeta, saveTarjeta: saveTarjeta, confirmarPagarPrest: confirmarPagarPrest, revertirPagoPrest: revertirPagoPrest,
+    modalAddTarjeta: modalAddTarjeta, modalEditTarjeta: modalEditTarjeta, saveTarjeta: saveTarjeta, confirmarPagarPrest: confirmarPagarPrest, revertirPagoPrest: revertirPagoPrest, confirmarRevertirPagoPrest: confirmarRevertirPagoPrest,
     modalEditPrest: modalEditPrest, modalSimUVA: modalSimUVA, modalUVAFecha: modalUVAFecha, previewUVAFecha: previewUVAFecha, guardarUVAFecha: guardarUVAFecha, limpiarUVAFecha: limpiarUVAFecha, modalSimNuevo: modalSimNuevo,
     modalAddC: modalAddC, modalEditC: modalEditC, modalCompraC: modalCompraC,
     modalEvento: modalEvento, modalInfl: modalInfl, modalAddComp: modalAddComp, modalEditComp: modalEditComp,
